@@ -1,0 +1,17 @@
+{
+  "name": "pocket-pilot",
+  "version": "0.0.1",
+  "private": true,
+  "description": "A move-optimizer engine for Pokemon TCG Pocket: given a live board state, rank the legal plays by win-equity under the game's randomness (coin flips, energy generation, hidden info).",
+  "type": "module",
+  "scripts": {
+    "demo": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx src/engine.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
