@@ -22,8 +22,8 @@ interface Slot { name: string; energy: ConcreteEnergy[]; damage: number; conditi
 type Side = 'mine' | 'opp';
 
 const STORAGE_KEY = 'pocket-pilot:board2';
-const board: { mine: (Slot | null)[]; opp: (Slot | null)[]; hand: string[]; pending: string; myPts: number; oppPts: number } = {
-  mine: [null, null, null, null], opp: [null, null, null, null], hand: [], pending: '', myPts: 0, oppPts: 0,
+const board: { mine: (Slot | null)[]; opp: (Slot | null)[]; hand: string[]; pending: string; myPts: number; oppPts: number; oppZone: ConcreteEnergy[] } = {
+  mine: [null, null, null, null], opp: [null, null, null, null], hand: [], pending: '', myPts: 0, oppPts: 0, oppZone: [],
 };
 let selected: { side: Side; idx: number } | null = null;
 let placePending: string | null = null;
@@ -37,14 +37,15 @@ function toInPlay(s: Slot | null): InPlay | null {
   if (s.conditions.length) ip.conditions = [...s.conditions];
   return ip;
 }
-function player(name: string, slots: (Slot | null)[], points: number, pending: ConcreteEnergy | null, hand: string[]): PlayerState {
+function player(name: string, slots: (Slot | null)[], points: number, pending: ConcreteEnergy | null, hand: string[], zone?: ConcreteEnergy[]): PlayerState {
   const active = toInPlay(slots[0]!);
   const bench = slots.slice(1).map(toInPlay).filter((x): x is InPlay => x !== null);
   return {
     name, active, bench,
     hand: hand.map((n) => findAnyCard(n)).filter((c): c is NonNullable<typeof c> => c != null),
     deckCount: 20, discardCount: 0, points,
-    energyZone: pending ? [pending] : concreteOf(active?.card.type),
+    // An explicit Energy Zone wins; otherwise fall back to the active's type.
+    energyZone: pending ? [pending] : zone && zone.length ? [...zone] : concreteOf(active?.card.type),
     pendingEnergy: pending, energyAttachedThisTurn: false,
   };
 }
@@ -54,7 +55,7 @@ function buildState(): GameState {
     toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
     players: [
       player('You', board.mine, board.myPts, pending, board.hand),
-      player('Opponent', board.opp, board.oppPts, null, []),
+      player('Opponent', board.opp, board.oppPts, null, [], board.oppZone),
     ],
   };
 }
@@ -281,13 +282,13 @@ function loadExample(): void {
     { name: 'Articuno ex', energy: [], damage: 0, conditions: [] }, null,
   ];
   board.opp = [{ name: 'Pikachu ex', energy: ['Lightning', 'Lightning'], damage: 0, conditions: [] }, null, null, null];
-  board.pending = 'Fire'; board.myPts = 0; board.oppPts = 0; board.hand = ['Giovanni'];
+  board.pending = 'Fire'; board.myPts = 0; board.oppPts = 0; board.hand = ['Giovanni']; board.oppZone = ['Lightning'];
   pendingSel.value = 'Fire'; myPtsEl.value = '0'; oppPtsEl.value = '0';
   selected = { side: 'mine', idx: 0 };
   changed();
 }
 function clearBoard(): void {
-  board.mine = [null, null, null, null]; board.opp = [null, null, null, null]; board.hand = []; board.pending = ''; board.myPts = 0; board.oppPts = 0;
+  board.mine = [null, null, null, null]; board.opp = [null, null, null, null]; board.hand = []; board.pending = ''; board.myPts = 0; board.oppPts = 0; board.oppZone = [];
   selected = null; pendingSel.value = ''; myPtsEl.value = '0'; oppPtsEl.value = '0';
   try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   changed();
@@ -299,6 +300,23 @@ const myPtsEl = el('input', { class: 'pts', type: 'number', min: '0', max: '3', 
 myPtsEl.addEventListener('input', () => { board.myPts = Math.max(0, Math.min(3, Number(myPtsEl.value) || 0)); save(); renderBoard(); renderRecs(); });
 const oppPtsEl = el('input', { class: 'pts', type: 'number', min: '0', max: '3', value: '0', title: 'opponent points' }) as HTMLInputElement;
 oppPtsEl.addEventListener('input', () => { board.oppPts = Math.max(0, Math.min(3, Number(oppPtsEl.value) || 0)); save(); renderBoard(); renderRecs(); });
+
+// Opponent Energy Zone: the (up to 3) energy types they generate, used to predict
+// what they can attach on their reply.  Falls back to the active's type if unset.
+const oppZoneEl = el('span', { class: 'oppzone' });
+function setOppZone(e: ConcreteEnergy): void {
+  const i = board.oppZone.indexOf(e);
+  if (i >= 0) board.oppZone.splice(i, 1);
+  else if (board.oppZone.length < 3) board.oppZone.push(e);
+  save(); renderOppZone(); renderRecs();
+}
+function renderOppZone(): void {
+  clear(oppZoneEl);
+  oppZoneEl.append(el('span', { class: 'muted', title: 'energy the opponent generates (default: their active type)' }, 'opp zone'));
+  for (const e of ENERGIES) {
+    oppZoneEl.append(el('button', { class: `eb${board.oppZone.includes(e) ? ' on' : ''}`, type: 'button', title: e, onClick: () => setOppZone(e) }, ABBR[e]));
+  }
+}
 
 searchInput.addEventListener('input', () => renderSearch(searchInput.value));
 
@@ -312,6 +330,7 @@ app.append(
       el('label', { class: 'muted' }, 'you ', myPtsEl), el('label', { class: 'muted' }, 'opp ', oppPtsEl),
       el('button', { type: 'button', onClick: loadExample }, 'Example'),
       el('button', { type: 'button', onClick: clearBoard }, 'Clear'),
+      oppZoneEl,
     ),
     editorEl,
     handEl,
@@ -323,6 +342,7 @@ app.append(
 );
 
 load();
+if (!Array.isArray(board.oppZone)) board.oppZone = [];
 if (board.pending) pendingSel.value = board.pending;
 myPtsEl.value = String(board.myPts); oppPtsEl.value = String(board.oppPts);
-renderBoard(); renderEditor(); renderHand(); renderSearch(''); renderRecs();
+renderBoard(); renderEditor(); renderHand(); renderOppZone(); renderSearch(''); renderRecs();

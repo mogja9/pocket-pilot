@@ -364,6 +364,24 @@ test('coin-gated disruption: a 50% paralyze raises the attack value vs vanilla',
   assert.ok(withPara > without, `50% paralyze should raise the attack EV (${withPara} vs ${without})`);
 });
 
+test("opponent Energy Zone drives the predicted reply", () => {
+  // Marowak ex has 1 Fighting but Bonemerang costs 2; whether it can attack on
+  // its reply depends on what its Energy Zone generates.
+  const mk = (zone: ConcreteEnergy[]): GameState => ({
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'You', active: ip('Snorlax'), bench: [], hand: [], deckCount: 12, discardCount: 0, points: 0,
+        energyZone: [], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'Opp', active: ip('Marowak ex', ['Fighting']), bench: [], hand: [], deckCount: 12, discardCount: 0,
+        points: 0, energyZone: zone, pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  });
+  const withFighting = summarizeBestLine(mk(['Fighting']))!;
+  const withNone = summarizeBestLine(mk([]))!;
+  assert.match(withFighting.oppReply!.text, /Bonemerang/, 'with a Fighting zone the reply attacks');
+  assert.ok(!withNone.oppReply || !/Bonemerang/.test(withNone.oppReply.text), 'with no zone it cannot reach the cost');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
