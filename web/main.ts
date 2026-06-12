@@ -6,6 +6,7 @@ import type { GameState, InPlay, PlayerState, ConcreteEnergy, EnergyType, Condit
 import { el, clear } from './dom.js';
 import { cardImageUrl } from './images.js';
 import { cardDetailEl } from './card-view.js';
+import { slotTargetFromPoint } from './dnd.js';
 
 const { findCard, hasCard, findAnyCard, ALL_POKEMON } = buildIndex(rawCards as RawCard[]);
 
@@ -79,12 +80,48 @@ function place(side: Side, idx: number, name: string): void {
 function removeSlot(side: Side, idx: number): void { board[side][idx] = null; if (selected?.side === side && selected.idx === idx) selected = null; changed(); }
 function changed(): void { save(); renderBoard(); renderEditor(); renderRecs(); }
 
+// Touch-drag: drag a card with a finger onto the slot under it.  Complements the
+// desktop HTML5 drag and the tap-to-place fallback; both stay working.
+function enableTouchDrag(node: HTMLElement, name: string, imgUrl: string | null): void {
+  node.addEventListener('touchstart', (ev) => {
+    const t = (ev as TouchEvent).touches[0];
+    if (!t) return;
+    const ghost = el('div', { class: 'dragghost' }, imgUrl ? el('img', { src: imgUrl, alt: name }) : el('div', { class: 'noimg' }, name));
+    const moveGhost = (x: number, y: number) => { ghost.style.left = `${x}px`; ghost.style.top = `${y}px`; };
+    moveGhost(t.clientX, t.clientY);
+    document.body.append(ghost);
+    let lastSlot: Element | null = null;
+
+    const onMove = (mv: TouchEvent) => {
+      mv.preventDefault(); // hold the page still while dragging
+      const tt = mv.touches[0];
+      if (!tt) return;
+      moveGhost(tt.clientX, tt.clientY);
+      ghost.style.visibility = 'hidden';
+      const slot = document.elementFromPoint(tt.clientX, tt.clientY)?.closest('.slot') ?? null;
+      ghost.style.visibility = '';
+      if (slot !== lastSlot) { lastSlot?.classList.remove('drop'); slot?.classList.add('drop'); lastSlot = slot; }
+    };
+    const onEnd = (en: TouchEvent) => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      lastSlot?.classList.remove('drop');
+      ghost.remove(); // remove BEFORE hit-testing so the ghost isn't what we hit
+      const tt = en.changedTouches[0];
+      const tgt = tt ? slotTargetFromPoint(tt.clientX, tt.clientY) : null;
+      if (tgt) place(tgt.side, tgt.idx, name);
+    };
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  }, { passive: true });
+}
+
 // ---- board rendering --------------------------------------------------------
 const boardEl = el('div', { class: 'board' });
 
 function slotEl(side: Side, idx: number, label: string): HTMLElement {
   const s = board[side][idx];
-  const node = el('div', { class: `slot${s ? ' filled' : ''}${selected?.side === side && selected.idx === idx ? ' sel' : ''}`, 'data-label': label });
+  const node = el('div', { class: `slot${s ? ' filled' : ''}${selected?.side === side && selected.idx === idx ? ' sel' : ''}`, 'data-label': label, 'data-side': side, 'data-idx': String(idx) });
   node.addEventListener('dragover', (e) => { e.preventDefault(); node.classList.add('drop'); });
   node.addEventListener('dragleave', () => node.classList.remove('drop'));
   node.addEventListener('drop', (e) => {
@@ -166,6 +203,7 @@ function renderSearch(query: string): void {
     tile.append(url ? el('img', { class: 'thumb', src: url, alt: p.name, loading: 'lazy' }) : el('div', { class: 'noimg' }, p.name), el('span', { class: 'tn' }, p.name));
     tile.addEventListener('dragstart', (e) => { (e as DragEvent).dataTransfer?.setData('text/plain', p.name); });
     tile.addEventListener('click', () => { placePending = placePending === p.name ? null : p.name; renderSearchSelection(); });
+    enableTouchDrag(tile, p.name, url);
     searchGrid.append(tile);
   }
 }

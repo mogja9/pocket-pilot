@@ -50,4 +50,14 @@ t('cardDetailEl shows compact rider tags for parsed mechanics', () => {
   const healTags = [...cardDetailEl(findCard('Vaporeon')).querySelectorAll('.ci-tag')].map((e) => e.textContent);
   assert.ok(healTags.includes('heal 30'), `expected a heal tag, got ${healTags}`);
 });
+
+const { slotTargetFromEl } = await import('./dnd.js');
+t('slotTargetFromEl resolves the slot under a touch point', () => {
+  const slot = el('div', { class: 'slot', 'data-side': 'opp', 'data-idx': '2' }, el('img', { class: 'cardimg', alt: 'x' }));
+  document.body.append(slot);
+  const inner = slot.querySelector('img')!;
+  assert.deepEqual(slotTargetFromEl(inner), { side: 'opp', idx: 2 }, 'walks up to the .slot and reads its coords');
+  assert.equal(slotTargetFromEl(el('div', {})), null, 'a non-slot element resolves to null');
+  slot.remove();
+});
 console.log(`\n${passed} passed`);

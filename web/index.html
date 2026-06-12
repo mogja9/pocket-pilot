@@ -71,6 +71,9 @@
       .tile { width: 66px; cursor: grab; text-align: center; border: 1px solid transparent; border-radius: 6px; padding: 2px; }
       .tile:hover { background: #20252e; } .tile.picked { border-color: #2d5fd0; background: #1a2436; }
       .tile .thumb { height: 88px; } .tile .tn { display: block; font-size: 9px; color: #9aa3b0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tile { touch-action: none; }
+      .dragghost { position: fixed; width: 66px; height: 90px; pointer-events: none; transform: translate(-50%, -50%); z-index: 1000; opacity: 0.85; }
+      .dragghost img { width: 100%; height: 100%; object-fit: contain; }
 
       /* recs */
       .verdict { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; padding: 6px 8px; background: #161b22; border-radius: 6px; }
