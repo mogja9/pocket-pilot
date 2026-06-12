@@ -1,4 +1,4 @@
-import type { GameState } from './types.js';
+import type { GameState, Condition } from './types.js';
 import { legalMoves, applyMove, isTerminal, type Move } from './rules.js';
 import { evaluate } from './evaluate.js';
 
@@ -75,7 +75,7 @@ export function recommend(state: GameState): Recommendation[] {
   return recs;
 }
 
-export function describeMove(state: GameState, m: Move): string {
+function baseLabel(state: GameState, m: Move): string {
   const me = state.players[state.toMove];
   switch (m.type) {
     case 'attachEnergy':
@@ -93,4 +93,49 @@ export function describeMove(state: GameState, m: Move): string {
     case 'endTurn':
       return 'End turn';
   }
+}
+
+const COND_LABEL: Record<Condition, string> = {
+  asleep: 'puts it to sleep', paralyzed: 'paralyzes it', poisoned: 'poisons it', burned: 'burns it', confused: 'confuses it',
+};
+
+// What a move accomplishes, read off the before/after delta (not hardcoded per
+// card): a KO and the points it scores, status it lands, energy it strips off
+// the defender, and damage it heals on your own active.
+export function moveAnnotation(state: GameState, m: Move): string {
+  const me = state.toMove;
+  const opp = (me ^ 1) as 0 | 1;
+  let after: GameState;
+  try { after = applyMove(state, m); } catch { return ''; }
+  const parts: string[] = [];
+
+  const ptsGain = after.players[me]!.points - state.players[me]!.points;
+  const defBefore = state.players[opp]!.active;
+  const defAfter = after.players[opp]!.active;
+  if (ptsGain > 0 && defBefore) {
+    parts.push(`KOs ${defBefore.card.name} (+${ptsGain} pt${ptsGain > 1 ? 's' : ''})`);
+  } else if (defBefore && defAfter && defBefore.card.id === defAfter.card.id) {
+    // The same defender survived: report what stuck to it.
+    const dealt = Math.round(defAfter.damage - defBefore.damage);
+    if (m.type === 'attack' && dealt > 0) parts.push(`deals ${dealt}`);
+    for (const c of defAfter.conditions ?? []) {
+      if (!(defBefore.conditions ?? []).includes(c)) parts.push(COND_LABEL[c]);
+    }
+    const stripped = defBefore.energy.length - defAfter.energy.length;
+    if (stripped > 0) parts.push(`strips ${stripped} energy`);
+  }
+
+  const myBefore = state.players[me]!.active;
+  const myAfter = after.players[me]!.active;
+  if (myBefore && myAfter && myBefore.card.id === myAfter.card.id) {
+    const healed = myBefore.damage - myAfter.damage;
+    if (healed > 0) parts.push(`heals ${healed}`);
+  }
+  return parts.join(', ');
+}
+
+export function describeMove(state: GameState, m: Move): string {
+  const label = baseLabel(state, m);
+  const note = moveAnnotation(state, m);
+  return note ? `${label} (${note})` : label;
 }

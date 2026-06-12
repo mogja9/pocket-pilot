@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { GameState, InPlay, ConcreteEnergy, PlayerState } from './types.js';
 import { findCard, findAnyCard, ALL_POKEMON, ALL_CARDS } from './data.js';
 import { canPayCost, expectedDamage, legalMoves, applyMove } from './rules.js';
-import { recommend } from './recommend.js';
+import { recommend, describeMove } from './recommend.js';
 
 let passed = 0;
 function test(name: string, fn: () => void) {
@@ -237,6 +237,32 @@ test('heal rider: a drain attack heals the attacker', () => {
   };
   const after = applyMove(state, { type: 'attack', attackIndex: bdIdx });
   assert.equal(after.players[0]!.active!.damage, 20, 'Bubble Drain healed 30 off the attacker (50 -> 20)');
+});
+
+test('explanation: moves are annotated from the state delta (KO, sleep)', () => {
+  const crimsonIdx = findCard('Charizard ex').attacks.findIndex((a) => a.name === 'Crimson Storm');
+  const koState: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Charizard ex', ['Fire', 'Fire', 'Fire', 'Fire']), bench: [], hand: [], deckCount: 10,
+        discardCount: 0, points: 0, energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning']), bench: [], hand: [], deckCount: 10, discardCount: 0,
+        points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  assert.match(describeMove(koState, { type: 'attack', attackIndex: crimsonIdx }), /KOs Pikachu ex \(\+2 pts\)/);
+
+  const psIdx = findCard('Frosmoth').attacks.findIndex((a) => a.name === 'Powder Snow');
+  const sleepState: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Frosmoth', ['Water', 'Water']), bench: [], hand: [], deckCount: 10, discardCount: 0,
+        points: 0, energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Snorlax'), bench: [], hand: [], deckCount: 10, discardCount: 0,
+        points: 0, energyZone: [], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  assert.match(describeMove(sleepState, { type: 'attack', attackIndex: psIdx }), /sleep/);
 });
 
 test('trainer: Sabrina switches the opponent active', () => {
