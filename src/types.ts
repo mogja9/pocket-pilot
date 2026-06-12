@@ -54,12 +54,18 @@ export interface TrainerCard {
 
 export type Card = PokemonCard | TrainerCard;
 
+// Special conditions.  asleep/paralyzed lock the active out of attacking and
+// retreating; poisoned/burned tick damage between turns; confused makes an
+// attack a coin flip.  They can co-exist (e.g. poisoned AND asleep).
+export type Condition = 'asleep' | 'paralyzed' | 'poisoned' | 'burned' | 'confused';
+
 // An instance of a Pokemon in play (active or benched).
 export interface InPlay {
   card: PokemonCard;
   energy: ConcreteEnergy[];  // attached energy
   damage: number;            // damage taken (KO when damage >= hp)
   turnPlayedOrEvolved: number; // for evolution / summoning-sickness timing
+  conditions?: Condition[];  // special conditions (undefined = none)
 }
 
 export interface PlayerState {

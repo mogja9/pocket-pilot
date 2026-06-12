@@ -2,7 +2,7 @@ import rawCards from '../data/ptcgp-cards.json';
 import { buildIndex, type RawCard } from '../src/card-index.js';
 import { recommend, describeMove } from '../src/recommend.js';
 import { applyMove } from '../src/rules.js';
-import type { GameState, InPlay, PlayerState, ConcreteEnergy, EnergyType } from '../src/types.js';
+import type { GameState, InPlay, PlayerState, ConcreteEnergy, EnergyType, Condition } from '../src/types.js';
 import { el, clear } from './dom.js';
 
 const { findCard, hasCard, ALL_POKEMON } = buildIndex(rawCards as RawCard[]);
@@ -18,29 +18,44 @@ const concreteOf = (t: EnergyType | undefined): ConcreteEnergy[] => (t && CONCRE
 const names = [...new Set(ALL_POKEMON.map((p) => p.name))].sort();
 const datalist = el('datalist', { id: 'cards' }, ...names.map((n) => el('option', { value: n })));
 
+const CONDITIONS: Condition[] = ['asleep', 'paralyzed', 'poisoned', 'burned', 'confused'];
+const CABBR: Record<Condition, string> = { asleep: 'Slp', paralyzed: 'Par', poisoned: 'Psn', burned: 'Brn', confused: 'Cnf' };
+
 interface Slot { root: HTMLElement; read: () => InPlay | null; set: (name: string, energy: ConcreteEnergy[]) => void; }
 
 function createSlot(label: string): Slot {
   let energy: ConcreteEnergy[] = [];
+  const conds = new Set<Condition>();
   const nameInput = el('input', { class: 'name', list: 'cards', placeholder: label, autocomplete: 'off' }) as HTMLInputElement;
+  const dmgInput = el('input', { class: 'pts', type: 'number', min: '0', value: '0', title: 'damage taken' }) as HTMLInputElement;
   const energyView = el('span', { class: 'energy' });
   const render = () => { clear(energyView); energyView.append(energy.length ? energy.map((e) => ABBR[e]).join(' ') : '-'); };
-  const btns = ENERGIES.map((e) =>
+  const eBtns = ENERGIES.map((e) =>
     el('button', { class: 'eb', type: 'button', title: e, onClick: () => { energy.push(e); render(); } }, ABBR[e]),
   );
   const clr = el('button', { class: 'eb clr', type: 'button', title: 'clear energy', onClick: () => { energy = []; render(); } }, 'x');
+  const cBtns = CONDITIONS.map((c) => {
+    const b = el('button', { class: 'cb', type: 'button', title: c }, CABBR[c]);
+    b.addEventListener('click', () => {
+      if (conds.has(c)) { conds.delete(c); b.classList.remove('on'); } else { conds.add(c); b.classList.add('on'); }
+    });
+    return b;
+  });
   render();
   const root = el('div', { class: 'slot' },
     el('label', {}, label),
     nameInput,
-    el('div', { class: 'erow' }, energyView, ...btns, clr),
+    el('div', { class: 'erow' }, energyView, ...eBtns, clr),
+    el('div', { class: 'erow' }, el('span', { class: 'muted', title: 'damage' }, 'dmg'), dmgInput, ...cBtns),
   );
   return {
     root,
     read: () => {
       const n = nameInput.value.trim();
       if (!n || !hasCard(n)) return null;
-      return { card: findCard(n), energy: [...energy], damage: 0, turnPlayedOrEvolved: 0 };
+      const ip: InPlay = { card: findCard(n), energy: [...energy], damage: Math.max(0, Number(dmgInput.value) || 0), turnPlayedOrEvolved: 0 };
+      if (conds.size) ip.conditions = [...conds];
+      return ip;
     },
     set: (name, e) => { nameInput.value = name; energy = [...e]; render(); },
   };

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { GameState, InPlay, ConcreteEnergy, PlayerState } from './types.js';
 import { findCard, ALL_POKEMON } from './data.js';
-import { canPayCost, expectedDamage } from './rules.js';
+import { canPayCost, expectedDamage, legalMoves, applyMove } from './rules.js';
 import { recommend } from './recommend.js';
 
 let passed = 0;
@@ -102,6 +102,41 @@ test('scaling: Circle Circuit deals 30 x benched Lightning', () => {
   assert.equal(expectedDamage(cc, pikachu, defender, mk([]), opp), 0, '0 benched Lightning -> 0');
   const twoLightning = mk([ip('Pikachu ex'), ip('Pikachu ex')]);
   assert.equal(expectedDamage(cc, pikachu, defender, twoLightning, opp), 60, '2 benched Lightning -> 60');
+});
+
+test('condition: paralyzed active cannot attack or retreat', () => {
+  const active = ip('Charizard ex', ['Fire', 'Fire', 'Fire']);
+  active.conditions = ['paralyzed'];
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active, bench: [ip('Articuno ex')], hand: [], deckCount: 0, discardCount: 0,
+        points: 0, energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning', 'Lightning']), bench: [], hand: [],
+        deckCount: 0, discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const moves = legalMoves(state);
+  assert.ok(!moves.some((m) => m.type === 'attack'), 'paralyzed cannot attack');
+  assert.ok(!moves.some((m) => m.type === 'retreat'), 'paralyzed cannot retreat');
+  assert.ok(moves.some((m) => m.type === 'endTurn'), 'can still end turn');
+});
+
+test('condition: poison ticks 10 damage at the between-turn checkup', () => {
+  const active = ip('Charizard ex');
+  active.conditions = ['poisoned'];
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active, bench: [], hand: [], deckCount: 0, discardCount: 0, points: 0,
+        energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex'), bench: [], hand: [], deckCount: 0, discardCount: 0,
+        points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const after = applyMove(state, { type: 'endTurn' });
+  assert.equal(after.players[0]!.active!.damage, 10, 'poisoned active takes 10 at checkup');
+  assert.equal(after.players[1]!.active!.damage, 0, 'un-poisoned active unaffected');
 });
 
 console.log(`\n${passed} passed`);

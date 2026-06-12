@@ -63,6 +63,8 @@ function freeBench(p: PlayerState): boolean {
 export function legalMoves(state: GameState): Move[] {
   const me = state.players[state.toMove];
   const moves: Move[] = [];
+  // An asleep or paralyzed active cannot attack or retreat.
+  const activeLocked = !!me.active && (me.active.conditions ?? []).some((c) => c === 'asleep' || c === 'paralyzed');
 
   // Attach the turn's generated energy (once per turn) to any of my Pokemon.
   if (me.pendingEnergy && !me.energyAttachedThisTurn) {
@@ -86,12 +88,12 @@ export function legalMoves(state: GameState): Move[] {
   });
 
   // Retreat (swap active with a benched Pokemon), if we can pay the cost.
-  if (me.active && me.bench.length > 0 && me.active.energy.length >= me.active.card.retreatCost) {
+  if (me.active && !activeLocked && me.bench.length > 0 && me.active.energy.length >= me.active.card.retreatCost) {
     me.bench.forEach((_, i) => moves.push({ type: 'retreat', benchIndex: i }));
   }
 
   // Attack with the active Pokemon (terminal).
-  if (me.active) {
+  if (me.active && !activeLocked) {
     me.active.card.attacks.forEach((atk, attackIndex) => {
       if (canPayCost(me.active!.energy, atk.cost)) moves.push({ type: 'attack', attackIndex });
     });
@@ -148,11 +150,10 @@ export function applyMove(state: GameState, move: Move): GameState {
     case 'attack': {
       const atk = me.active?.card.attacks[move.attackIndex];
       if (me.active && atk && opp.active) {
-        opp.active.damage += expectedDamage(atk, me.active, opp.active, me, opp);
-        if (opp.active.damage >= opp.active.card.hp) {
-          me.points += opp.active.card.isEx ? 2 : 1; // KO scores points
-          opp.active = opp.bench.shift() ?? null;    // promote a benched Pokemon
-        }
+        let dmg = expectedDamage(atk, me.active, opp.active, me, opp);
+        if ((me.active.conditions ?? []).includes('confused')) dmg *= 0.5; // 50% the attack fails
+        opp.active.damage += dmg;
+        resolveKO(next, (next.toMove ^ 1) as 0 | 1); // the defender may be KO'd
       }
       endTurn(next);
       break;
@@ -164,7 +165,28 @@ export function applyMove(state: GameState, move: Move): GameState {
   return next;
 }
 
+// If player `ownerIdx`'s active is KO'd, award points to the other player
+// (2 for an ex) and promote a benched Pokemon.
+function resolveKO(state: GameState, ownerIdx: 0 | 1): void {
+  const owner = state.players[ownerIdx];
+  const other = state.players[(ownerIdx ^ 1) as 0 | 1];
+  if (owner.active && owner.active.damage >= owner.active.card.hp) {
+    other.points += owner.active.card.isEx ? 2 : 1;
+    owner.active = owner.bench.shift() ?? null;
+  }
+}
+
 function endTurn(state: GameState): void {
+  // Between-turn checkup: poison (10) and burn (20) tick on conditioned actives.
+  // (Wake/recover/heal flips are not modeled over the short search horizon yet.)
+  ([0, 1] as const).forEach((idx) => {
+    const a = state.players[idx].active;
+    if (!a) return;
+    const c = a.conditions ?? [];
+    if (c.includes('poisoned')) a.damage += 10;
+    if (c.includes('burned')) a.damage += 20;
+    resolveKO(state, idx);
+  });
   state.toMove = (state.toMove ^ 1) as 0 | 1;
   state.turn += 1;
   state.isFirstPlayerFirstTurn = false;
