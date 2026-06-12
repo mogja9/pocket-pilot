@@ -88,7 +88,7 @@ export function recommend(state: GameState): Recommendation[] {
   // is more informative to surface than a bare energy attach that merely sets
   // up the same line).
   const PRIORITY: Record<Move['type'], number> = {
-    attack: 3, retreat: 3, playTrainer: 2, evolve: 2, attachEnergy: 1, playBasic: 1, endTurn: 0,
+    attack: 3, retreat: 3, useAbility: 3, playTrainer: 2, evolve: 2, attachEnergy: 1, playBasic: 1, endTurn: 0,
   };
   recs.sort((a, b) =>
     Math.abs(a.value - b.value) > 1e-6 ? b.value - a.value : PRIORITY[b.move.type] - PRIORITY[a.move.type],
@@ -111,6 +111,10 @@ function baseLabel(state: GameState, m: Move): string {
       return `Play ${me.hand[m.handIndex]?.name ?? 'trainer'}`;
     case 'attack':
       return `Attack: ${me.active?.card.attacks[m.attackIndex]?.name ?? '?'}`;
+    case 'useAbility': {
+      const unit = m.source === 'active' ? me.active : me.bench[m.source];
+      return `Ability: ${unit?.card.ability?.name ?? '?'}`;
+    }
     case 'endTurn':
       return 'End turn';
   }
@@ -141,7 +145,7 @@ export function moveAnnotation(state: GameState, m: Move): string {
   if (ptsGain === 0 && defBefore && defAfter && defBefore.card.id === defAfter.card.id) {
     // The same defender survived: report what stuck to it.
     const dealt = Math.round(defAfter.damage - defBefore.damage);
-    if (m.type === 'attack' && dealt > 0) parts.push(`deals ${dealt}`);
+    if ((m.type === 'attack' || m.type === 'useAbility') && dealt > 0) parts.push(`deals ${dealt}`);
     for (const c of defAfter.conditions ?? []) {
       if (!(defBefore.conditions ?? []).includes(c)) parts.push(COND_LABEL[c]);
     }

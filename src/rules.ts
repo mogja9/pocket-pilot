@@ -4,6 +4,7 @@ import type {
 import { BENCH_SIZE, WEAKNESS_BONUS } from './types.js';
 import { scalingFor } from './effects.js';
 import { trainerEffect } from './trainers.js';
+import { abilityEffect } from './abilities.js';
 
 // A single legal action a player can take.  Attacks and endTurn are terminal
 // (they end the turn); the rest can be chained within a turn.
@@ -13,6 +14,7 @@ export type Move =
   | { type: 'playBasic'; handIndex: number }
   | { type: 'retreat'; benchIndex: number }
   | { type: 'playTrainer'; handIndex: number }
+  | { type: 'useAbility'; source: 'active' | number }     // active or bench index
   | { type: 'attack'; attackIndex: number }
   | { type: 'endTurn' };
 
@@ -114,6 +116,17 @@ export function legalMoves(state: GameState): Move[] {
     moves.push({ type: 'playTrainer', handIndex });
   });
 
+  // Activated abilities (once per turn per Pokemon; many work from the bench).
+  const units: [InPlay | null, 'active' | number][] = [[me.active, 'active'], ...me.bench.map((b, i) => [b, i] as [InPlay, number])];
+  for (const [unit, source] of units) {
+    if (!unit?.card.ability || unit.abilityUsedThisTurn) continue;
+    const ab = abilityEffect(unit.card.ability.name);
+    if (!ab) continue;
+    if (ab.requiresActive && source !== 'active') continue;
+    if (ab.usable && !ab.usable(state, state.toMove, unit)) continue;
+    moves.push({ type: 'useAbility', source });
+  }
+
   // Attack with the active Pokemon (terminal).
   if (me.active && !activeLocked) {
     me.active.card.attacks.forEach((atk, attackIndex) => {
@@ -181,6 +194,16 @@ export function applyMove(state: GameState, move: Move): GameState {
         }
       }
       break;
+    }
+    case 'useAbility': {
+      const unit = move.source === 'active' ? me.active : me.bench[move.source];
+      const ab = unit?.card.ability ? abilityEffect(unit.card.ability.name) : undefined;
+      if (unit && ab) {
+        ab.apply(next, next.toMove, unit);
+        unit.abilityUsedThisTurn = true;
+        resolveKO(next, (next.toMove ^ 1) as 0 | 1); // a damage ability may KO
+      }
+      break; // a free action: does NOT end the turn
     }
     case 'attack': {
       const atk = me.active?.card.attacks[move.attackIndex];
@@ -295,5 +318,6 @@ function endTurn(state: GameState): void {
   p.attackBonus = 0;
   p.attackBonusVsEx = 0;
   p.retreatReduction = 0;
+  for (const x of [p.active, ...p.bench]) if (x) x.abilityUsedThisTurn = false; // abilities refresh each turn
   // The new player's energy generation is modeled at advise-time, not here.
 }

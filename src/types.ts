@@ -96,6 +96,7 @@ export interface InPlay {
   // a coin heads.  Set by applyMove (not yet a real condition); the 2-ply reply
   // (recommend.ts) blends over the 50% rather than committing in a single state.
   pendingCoinConditions?: Condition[];
+  abilityUsedThisTurn?: boolean; // an activated ability is once per turn per Pokemon
 }
 
 export interface PlayerState {

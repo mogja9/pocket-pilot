@@ -382,6 +382,26 @@ test("opponent Energy Zone drives the predicted reply", () => {
   assert.ok(!withNone.oppReply || !/Bonemerang/.test(withNone.oppReply.text), 'with no zone it cannot reach the cost');
 });
 
+test('ability: Greninja Water Shuriken snipes 20 and can finish a benched ex', () => {
+  const benched = ip('Articuno ex'); benched.damage = 120; // 140 HP, 20 from a KO
+  const state: GameState = {
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Greninja', ['Water', 'Water']), bench: [], hand: [], deckCount: 10, discardCount: 0,
+        points: 0, energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning']), bench: [benched], hand: [], deckCount: 10, discardCount: 0,
+        points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const ab = legalMoves(state).find((m) => m.type === 'useAbility');
+  assert.ok(ab, 'Water Shuriken is offered (Greninja has a registered ability)');
+  const after = applyMove(state, ab!);
+  assert.equal(after.players[0]!.points, 2, 'sniping the benched ex scores 2');
+  assert.equal(after.players[1]!.bench.length, 0, "the benched ex was KO'd");
+  assert.equal(after.toMove, 0, 'using an ability does not end the turn');
+  assert.ok(!legalMoves(after).some((m) => m.type === 'useAbility'), 'and it cannot be used again this turn');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
