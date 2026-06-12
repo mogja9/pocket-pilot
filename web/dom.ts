@@ -15,7 +15,10 @@ export function el<K extends keyof HTMLElementTagNameMap>(
     else if (k.startsWith('on') && typeof v === 'function') {
       node.addEventListener(k.slice(2).toLowerCase(), v as EventListener);
     } else if (k in node) {
-      (node as Record<string, unknown>)[k] = v;
+      // Some DOM properties are read-only (e.g. input.list); assigning throws
+      // in strict mode, so fall back to setting the attribute.
+      try { (node as Record<string, unknown>)[k] = v; }
+      catch { node.setAttribute(k, String(v)); }
     } else {
       node.setAttribute(k, String(v));
     }
