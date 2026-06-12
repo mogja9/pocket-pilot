@@ -10,7 +10,7 @@ imperfect-information card game: enumerate the legal actions for the turn, searc
 the action sequences (setup plays then an attack), and score the resulting
 positions with a heuristic evaluator.
 
-## Status: v0.3 (engine core + real card data + 2-ply defense)
+## Status: v0.4 (engine + real data + 2-ply defense + browser-runnable web app)
 
 Working:
 
@@ -32,15 +32,21 @@ Working:
   scores each line by my equity AFTER the opponent's best reply, so it plays
   defensively (e.g. retreats a threatened ex rather than hanging it to a lethal
   2-point KO) instead of greedily maximizing this turn's board.
-- A small hand-entered seed of real cards (`src/cards.ts`).
+- **Web app** (`web/`, Vite): the engine is browser-runnable. The pure card
+  adapter (`src/card-index.ts`) is split from the node-only `fs` loader
+  (`src/data.ts`) so the browser builds the same card index from a bundled JSON
+  import. `web/main.ts` runs `recommend()` client-side and renders the ranked
+  plays + best line. Interactive board-entry is the next iteration.
 
 ## Try it
 
 ```bash
 npm install
-npm run demo       # ranked plays for a sample live situation
+npm run demo       # CLI: ranked plays for a sample live situation
 npm run test       # engine assertions
 npm run typecheck
+npm run web:dev     # web app at http://localhost:5173
+npm run web:build   # production build into dist-web/
 ```
 
 The demo shows the engine discovering that "attach Fire, then Crimson Storm"
