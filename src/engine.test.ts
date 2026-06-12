@@ -400,6 +400,37 @@ test('trainer: Sabrina switches the opponent active', () => {
   assert.equal(after.players[1]!.active!.card.name, 'Charmander', 'opponent active was switched to the bench');
 });
 
+test('trainer Cyrus: pulls a damaged benched foe into the Active spot', () => {
+  const cyrus = findAnyCard('Cyrus')!;
+  const benchedHurt = ip('Articuno ex'); benchedHurt.damage = 100;
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Charizard ex', ['Fire']), bench: [], hand: [cyrus], deckCount: 0, discardCount: 0,
+        points: 0, energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning']), bench: [benchedHurt], hand: [], deckCount: 0,
+        discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const play = legalMoves(state).find((m) => m.type === 'playTrainer');
+  assert.ok(play, 'Cyrus is legal when the opponent has a damaged bench');
+  const after = applyMove(state, play!);
+  assert.equal(after.players[1]!.active!.card.name, 'Articuno ex', 'the damaged benched ex is pulled to active');
+  assert.ok(after.players[1]!.bench.some((b) => b.card.name === 'Pikachu ex'), 'the old active went to the bench');
+});
+
+test('trainer Red: adds +20 only against an ex', () => {
+  const attacker = ip('Charizard ex', ['Fire', 'Fire', 'Fire']);
+  const slash = attacker.card.attacks.find((a) => a.name === 'Slash')!;
+  const mk = (bonus?: number): PlayerState => ({
+    name: 'p', active: attacker, bench: [], hand: [], deckCount: 0, discardCount: 0, points: 0,
+    energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false, attackBonusVsEx: bonus,
+  });
+  const exDef = ip('Pikachu ex'), nonExDef = ip('Pikachu');
+  assert.equal(expectedDamage(slash, attacker, exDef, mk(20), mk()) - expectedDamage(slash, attacker, exDef, mk(), mk()), 20, '+20 vs ex');
+  assert.equal(expectedDamage(slash, attacker, nonExDef, mk(20), mk()) - expectedDamage(slash, attacker, nonExDef, mk(), mk()), 0, 'nothing vs a non-ex');
+});
+
 test('trainer: Giovanni adds +10 to a damaging attack', () => {
   const attacker = ip('Charizard ex', ['Fire', 'Fire', 'Fire']);
   const defender = ip('Pikachu ex'); // Lightning, not weak to Fire

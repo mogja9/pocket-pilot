@@ -50,8 +50,12 @@ export function expectedDamage(
     const scale = scalingFor(attacker.card.name, attack.name);
     if (scale) base = scale({ attacker, defender, me, opp });
   }
-  // Giovanni-style flat boost applies to damaging attacks only.
-  if (me && (base > 0 || attack.coin)) base += me.attackBonus ?? 0;
+  // Giovanni-style flat boost applies to damaging attacks only; Red's boost only
+  // when the defender is an ex.
+  if (me && (base > 0 || attack.coin)) {
+    base += me.attackBonus ?? 0;
+    if (defender.card.isEx) base += me.attackBonusVsEx ?? 0;
+  }
   // "If tails, this attack does nothing" lands the base only some of the time.
   const successProbability = attack.coin?.successProbability ?? 1;
   const coinEV = attack.coin ? attack.coin.flips * 0.5 * attack.coin.damagePerHeads : 0;
@@ -289,6 +293,7 @@ function endTurn(state: GameState): void {
   p.energyAttachedThisTurn = false;
   p.supporterUsedThisTurn = false; // fresh turn: reset per-turn trainer modifiers
   p.attackBonus = 0;
+  p.attackBonusVsEx = 0;
   p.retreatReduction = 0;
   // The new player's energy generation is modeled at advise-time, not here.
 }

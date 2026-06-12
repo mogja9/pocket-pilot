@@ -112,7 +112,8 @@ export interface PlayerState {
   // Per-turn trainer state / modifiers (undefined = 0 / false):
   supporterUsedThisTurn?: boolean; // at most one Supporter per turn
   attackBonus?: number;            // +damage to this player's attacks this turn (Giovanni)
-  retreatReduction?: number;       // reduced retreat cost this turn (X Speed)
+  attackBonusVsEx?: number;        // +damage but only when the defender is an ex (Red)
+  retreatReduction?: number;       // reduced retreat cost this turn (X Speed / Leaf)
 }
 
 export interface GameState {
