@@ -60,7 +60,7 @@ function parseCard(html, id) {
   const isTrainer = /Trainer/.test(typeText);
 
   if (isTrainer) {
-    const subtype = /Supporter/.test(typeText) ? 'Supporter' : /Tool/.test(typeText) ? 'Tool' : 'Item';
+    const subtype = /Supporter/.test(typeText) ? 'Supporter' : /Stadium/.test(typeText) ? 'Stadium' : /Tool/.test(typeText) ? 'Tool' : 'Item';
     const eff = text(firstMatch(/<div class="card-text-section">([\s\S]*?)<\/div>/, block));
     const o = { id, name, type: 'Trainer', subtype };
     if (eff) o.text = eff;

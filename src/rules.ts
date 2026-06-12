@@ -14,6 +14,7 @@ export type Move =
   | { type: 'playBasic'; handIndex: number }
   | { type: 'retreat'; benchIndex: number }
   | { type: 'playTrainer'; handIndex: number }
+  | { type: 'playStadium'; handIndex: number }
   | { type: 'useAbility'; source: 'active' | number }     // active or bench index
   | { type: 'attack'; attackIndex: number }
   | { type: 'endTurn' };
@@ -118,6 +119,14 @@ export function legalMoves(state: GameState): Move[] {
     moves.push({ type: 'playTrainer', handIndex });
   });
 
+  // Play a Stadium: at most one per turn, and not one with the same name as the
+  // Stadium already in play.
+  if (!me.stadiumPlayedThisTurn) {
+    me.hand.forEach((c, handIndex) => {
+      if (c.kind === 'Stadium' && c.name !== state.stadium) moves.push({ type: 'playStadium', handIndex });
+    });
+  }
+
   // Activated abilities (once per turn per Pokemon; many work from the bench).
   const units: [InPlay | null, 'active' | number][] = [[me.active, 'active'], ...me.bench.map((b, i) => [b, i] as [InPlay, number])];
   for (const [unit, source] of units) {
@@ -194,6 +203,15 @@ export function applyMove(state: GameState, move: Move): GameState {
           if (eff.kind === 'Supporter') me.supporterUsedThisTurn = true;
           me.hand.splice(move.handIndex, 1);
         }
+      }
+      break;
+    }
+    case 'playStadium': {
+      const c = me.hand[move.handIndex];
+      if (c && c.kind === 'Stadium' && c.name !== next.stadium) {
+        next.stadium = c.name;           // replaces any previous Stadium (shared field)
+        me.stadiumPlayedThisTurn = true;
+        me.hand.splice(move.handIndex, 1);
       }
       break;
     }
@@ -317,6 +335,7 @@ function endTurn(state: GameState): void {
   const p = state.players[state.toMove];
   p.energyAttachedThisTurn = false;
   p.supporterUsedThisTurn = false; // fresh turn: reset per-turn trainer modifiers
+  p.stadiumPlayedThisTurn = false;
   p.attackBonus = 0;
   p.attackBonusVsEx = 0;
   p.retreatReduction = 0;

@@ -74,7 +74,7 @@ export interface PokemonCard {
 export interface TrainerCard {
   id: string;
   name: string;
-  kind: 'Item' | 'Supporter';
+  kind: 'Item' | 'Supporter' | 'Stadium';
   text?: string;
 }
 
@@ -112,6 +112,7 @@ export interface PlayerState {
   energyAttachedThisTurn: boolean;
   // Per-turn trainer state / modifiers (undefined = 0 / false):
   supporterUsedThisTurn?: boolean; // at most one Supporter per turn
+  stadiumPlayedThisTurn?: boolean; // at most one Stadium played per turn
   attackBonus?: number;            // +damage to this player's attacks this turn (Giovanni)
   attackBonusVsEx?: number;        // +damage but only when the defender is an ex (Red)
   retreatReduction?: number;       // reduced retreat cost this turn (X Speed / Leaf)
@@ -122,6 +123,7 @@ export interface GameState {
   toMove: 0 | 1;             // index of the player whose turn it is (the one we advise)
   turn: number;             // 1-based; turn 1 = first player's first turn
   isFirstPlayerFirstTurn: boolean; // no energy generated, no attack allowed for some setups
+  stadium?: string | null;  // the Stadium card in play (shared by both players), by name
 }
 
 export const BENCH_SIZE = 3;

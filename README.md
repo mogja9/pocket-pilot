@@ -51,6 +51,10 @@ coin-gated wordings are valued by expected value in the search instead.
   disruption, Wigglytuff Comforting Song heal, Hypno Sleep Pendulum), and 4
   **passive** abilities (Hard Coat / Shell Armor damage reduction in
   `expectedDamage`, Fluffy Flight / Levitate free retreat).
+- **Stadiums** (the 9 shared field cards): a `playStadium` move, at most one per
+  turn and never one with the same name as the Stadium already in play, which
+  sets the shared `stadium` on the game state. The continuous board effects
+  themselves are not modeled yet.
 
 ## Search and output
 
@@ -64,8 +68,10 @@ coin-gated wordings are valued by expected value in the search instead.
 
 ## Web app (`web/`, Vite)
 
-A visual battle board. Search a Pokemon and drag it onto a slot (HTML5 drag on
-desktop, **touch drag** on mobile, or tap-to-place), set each Pokemon's energy /
+A visual battle board. Search a Pokemon (every print / alt art is listed, and
+the one you pick keeps its art) and drag it onto a slot (HTML5 drag on
+desktop, **touch drag** on mobile, or tap-to-place), set the shared Stadium, set
+each Pokemon's energy /
 damage / conditions, set the **opponent's Energy Zone** (so the threat uses the
 energy they actually run), add the cards in **your hand** (trainers surface as
 plays), and read live recommendations: a color-coded verdict chip, the

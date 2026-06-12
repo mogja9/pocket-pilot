@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { GameState, InPlay, ConcreteEnergy, PlayerState } from './types.js';
+import type { GameState, InPlay, ConcreteEnergy, PlayerState, Card } from './types.js';
 import { findCard, findAnyCard, ALL_POKEMON, ALL_CARDS } from './data.js';
 import { canPayCost, expectedDamage, legalMoves, applyMove } from './rules.js';
 import { recommend, describeMove, summarizeBestLine } from './recommend.js';
@@ -487,6 +487,35 @@ test('evolution timing: cannot evolve a just-played Pokemon, nor evolve twice in
   assert.equal(after.players[0]!.active!.card.name, 'Charmeleon', 'evolved to Charmeleon');
   // The fresh Charmeleon cannot evolve again to Charizard the same turn.
   assert.ok(!legalMoves(after).some((m) => m.type === 'evolve'), 'cannot evolve twice in one turn');
+});
+
+test('stadium: one per turn, no same-name replace, shared field', () => {
+  const plains = findAnyCard('Starting Plains')!, plaza = findAnyCard('Peculiar Plaza')!;
+  assert.equal(plains.kind, 'Stadium', 'Stadium cards load as kind Stadium');
+  const mk = (stadium: string | null, hand: Card[]): GameState => ({
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false, stadium,
+    players: [
+      { name: 'me', active: ip('Charizard ex'), bench: [], hand, deckCount: 10, discardCount: 0, points: 0,
+        energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex'), bench: [], hand: [], deckCount: 10, discardCount: 0, points: 0,
+        energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  });
+  // None in play, one in hand -> playable; playing it sets the shared field.
+  const s = mk(null, [plains]);
+  const play = legalMoves(s).find((m) => m.type === 'playStadium');
+  assert.ok(play, 'a Stadium in hand is playable when none is in play');
+  const after = applyMove(s, play!);
+  assert.equal(after.stadium, 'Starting Plains', 'playing it sets the shared Stadium');
+  assert.equal(after.players[0]!.stadiumPlayedThisTurn, true, 'marks the once-per-turn flag');
+  // Same name already in play -> cannot replace with the same card.
+  assert.ok(!legalMoves(mk('Starting Plains', [plains])).some((m) => m.type === 'playStadium'), 'cannot replace a Stadium with the same one');
+  // A different Stadium can replace it.
+  assert.ok(legalMoves(mk('Starting Plains', [plaza])).some((m) => m.type === 'playStadium'), 'a different Stadium can replace it');
+  // Already played one this turn -> no second Stadium.
+  const s2 = mk(null, [plains, plaza]);
+  s2.players[0]!.stadiumPlayedThisTurn = true;
+  assert.ok(!legalMoves(s2).some((m) => m.type === 'playStadium'), 'at most one Stadium per turn');
 });
 
 test('trainer: Sabrina switches the opponent active', () => {

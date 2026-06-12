@@ -23,9 +23,10 @@ interface Slot { name: string; id?: string; energy: ConcreteEnergy[]; damage: nu
 type Side = 'mine' | 'opp';
 
 const STORAGE_KEY = 'pocket-pilot:board2';
-const board: { mine: (Slot | null)[]; opp: (Slot | null)[]; hand: string[]; pending: string; myPts: number; oppPts: number; oppZone: ConcreteEnergy[] } = {
-  mine: [null, null, null, null], opp: [null, null, null, null], hand: [], pending: '', myPts: 0, oppPts: 0, oppZone: [],
+const board: { mine: (Slot | null)[]; opp: (Slot | null)[]; hand: string[]; pending: string; myPts: number; oppPts: number; oppZone: ConcreteEnergy[]; stadium: string | null } = {
+  mine: [null, null, null, null], opp: [null, null, null, null], hand: [], pending: '', myPts: 0, oppPts: 0, oppZone: [], stadium: null,
 };
+const STADIUMS = ALL_CARDS.filter((c) => c.kind === 'Stadium');
 let selected: { side: Side; idx: number } | null = null;
 let placePending: { name: string; id: string } | null = null;
 
@@ -65,6 +66,7 @@ function buildState(): GameState {
   const pending = (board.pending || null) as ConcreteEnergy | null;
   return {
     toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    stadium: board.stadium,
     players: [
       player('You', board.mine, board.myPts, pending, board.hand),
       player('Opponent', board.opp, board.oppPts, null, [], board.oppZone),
@@ -209,11 +211,18 @@ function slotEl(side: Side, idx: number, label: string): HTMLElement {
 
 function renderBoard(): void {
   clear(boardEl);
+  const stadCard = board.stadium ? findAnyCard(board.stadium) : undefined;
+  const stadText = stadCard && 'text' in stadCard ? stadCard.text ?? '' : '';
+  const stadiumStrip = el('div', { class: `stadiumstrip${board.stadium ? ' active' : ''}`, title: stadText },
+    el('span', { class: 'muted' }, 'Stadium: '),
+    board.stadium ? el('b', {}, board.stadium) : el('span', { class: 'muted' }, 'none'),
+  );
   boardEl.append(
     el('div', { class: 'side opp' },
       el('div', { class: 'benchrow' }, slotEl('opp', 1, 'bench'), slotEl('opp', 2, 'bench'), slotEl('opp', 3, 'bench')),
       el('div', { class: 'activerow' }, el('span', { class: 'tag' }, `Opp - ${board.oppPts} pts`), slotEl('opp', 0, 'opp active')),
     ),
+    stadiumStrip,
     el('div', { class: 'side you' },
       el('div', { class: 'activerow' }, el('span', { class: 'tag' }, `You - ${board.myPts} pts`), slotEl('mine', 0, 'your active')),
       el('div', { class: 'benchrow' }, slotEl('mine', 1, 'bench'), slotEl('mine', 2, 'bench'), slotEl('mine', 3, 'bench')),
@@ -309,14 +318,15 @@ function loadExample(): void {
     { name: 'Articuno ex', energy: [], damage: 0, conditions: [] }, null,
   ];
   board.opp = [{ name: 'Pikachu ex', energy: ['Lightning', 'Lightning'], damage: 0, conditions: [] }, null, null, null];
-  board.pending = 'Fire'; board.myPts = 0; board.oppPts = 0; board.hand = ['Giovanni']; board.oppZone = ['Lightning'];
+  board.pending = 'Fire'; board.myPts = 0; board.oppPts = 0; board.hand = ['Giovanni']; board.oppZone = ['Lightning']; board.stadium = null;
+  stadiumSel.value = '';
   pendingSel.value = 'Fire'; myPtsEl.value = '0'; oppPtsEl.value = '0';
   selected = { side: 'mine', idx: 0 };
   changed();
 }
 function clearBoard(): void {
-  board.mine = [null, null, null, null]; board.opp = [null, null, null, null]; board.hand = []; board.pending = ''; board.myPts = 0; board.oppPts = 0; board.oppZone = [];
-  selected = null; pendingSel.value = ''; myPtsEl.value = '0'; oppPtsEl.value = '0';
+  board.mine = [null, null, null, null]; board.opp = [null, null, null, null]; board.hand = []; board.pending = ''; board.myPts = 0; board.oppPts = 0; board.oppZone = []; board.stadium = null;
+  selected = null; pendingSel.value = ''; myPtsEl.value = '0'; oppPtsEl.value = '0'; stadiumSel.value = '';
   try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   try { history.replaceState(null, '', location.pathname + location.search); } catch { location.hash = ''; }
   changed();
@@ -359,6 +369,14 @@ copyBtn.addEventListener('click', () => {
 
 searchInput.addEventListener('input', () => renderSearch(searchInput.value));
 
+// Stadium (shared field card).  Setting it here represents the live board; the
+// engine can also recommend playing a Stadium held in your hand.
+const stadiumSel = el('select', { class: 'stadiumsel', title: 'Stadium in play (shared by both players)' },
+  el('option', { value: '' }, 'no stadium'),
+  ...STADIUMS.map((s) => el('option', { value: s.name }, s.name)),
+) as HTMLSelectElement;
+stadiumSel.addEventListener('change', () => { board.stadium = stadiumSel.value || null; save(); renderBoard(); renderRecs(); });
+
 // ---- legend / help (collapsible, remembered) --------------------------------
 const HELP_KEY = 'pocket-pilot:help';
 let helpOpen = false;
@@ -399,6 +417,7 @@ app.append(
       el('button', { type: 'button', onClick: loadExample }, 'Example'),
       el('button', { type: 'button', onClick: clearBoard }, 'Clear'),
       copyBtn,
+      stadiumSel,
       oppZoneEl,
     ),
     editorEl,
@@ -413,5 +432,6 @@ app.append(
 load();
 if (!Array.isArray(board.oppZone)) board.oppZone = [];
 if (board.pending) pendingSel.value = board.pending;
+stadiumSel.value = board.stadium ?? '';
 myPtsEl.value = String(board.myPts); oppPtsEl.value = String(board.oppPts);
 renderHelp(); renderBoard(); renderEditor(); renderHand(); renderOppZone(); renderSearch(''); renderRecs();

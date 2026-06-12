@@ -79,7 +79,7 @@ function adaptAttack(cardName: string, a: NonNullable<RawCard['attacks']>[number
 
 export function adapt(r: RawCard): Card {
   if ((r.type ?? '').toLowerCase() !== 'pokemon') {
-    const kind = r.subtype === 'Supporter' ? 'Supporter' : 'Item';
+    const kind: TrainerCard['kind'] = r.subtype === 'Supporter' ? 'Supporter' : r.subtype === 'Stadium' ? 'Stadium' : 'Item';
     const t: TrainerCard = { id: r.id, name: r.name, kind, ...(r.text ? { text: r.text } : {}) };
     return t;
   }

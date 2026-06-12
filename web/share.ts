@@ -14,6 +14,7 @@ export interface ShareBoard {
   myPts: number;
   oppPts: number;
   oppZone: string[];
+  stadium?: string | null;
 }
 
 const ENERGIES = new Set(['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal']);
@@ -63,6 +64,7 @@ export function decodeBoard(str: string): ShareBoard | null {
       myPts: clampPts(raw.myPts),
       oppPts: clampPts(raw.oppPts),
       oppZone: strList(raw.oppZone, ENERGIES, 3),
+      ...(typeof raw.stadium === 'string' && raw.stadium ? { stadium: raw.stadium } : {}),
     };
   } catch {
     return null;
