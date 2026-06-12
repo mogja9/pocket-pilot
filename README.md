@@ -106,9 +106,14 @@ to catch multi-turn stalls), and `web/dom.test.ts` + `web/app.smoke.ts`.
 
 ## Remaining gaps
 
-- **Evaluator tuning.** The evaluator is a points-first heuristic; the
-  `selfplay` driver and scenario suite are the substrate for measuring and tuning
-  its weights, which has not been done.
+- **Evaluator tuning.** The evaluator is a points-first heuristic. There is an
+  A/B tournament harness (`src/tournament.ts`, `runTournament` over
+  `diverseBoards()`), but full-game self-play turns out to be insensitive to
+  small weight tweaks: the points-dominated KO race decides games, so a small
+  heuristic term rarely changes a winner (a KO-proximity term changed 0 of 24
+  games even when scaled up). The sensitive instrument for eval quality is the
+  decision-scenario suite, which the current eval passes; meaningfully advancing
+  the evaluator would need larger structural changes measured against it.
 - **Long-tail coverage.** More trainers and abilities can be added to their
   registries as needed; the highest-impact ones are in.
 - **Imperfect information.** A determinized ISMCTS over the hidden hand/deck

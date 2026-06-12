@@ -1,9 +1,16 @@
 // Eval A/B tournament: pit two evaluators against each other from a set of
 // starting boards.  Each board is played twice with the sides swapped, so
 // first-move advantage cancels and the score reflects eval strength, not who
-// moved first.  This is the measurement substrate for evaluator tuning -- run it
-// before and after an evaluate.ts change to see whether the change actually wins
-// more games.  (The engine is deterministic, so each game is reproducible.)
+// moved first.  The engine is deterministic, so each game is reproducible.
+//
+// MEASUREMENT NOTE: full-game A/B turns out to be INSENSITIVE to small evaluate.ts
+// tweaks.  Self-play is dominated by the points*1000 KO race in the terminal
+// eval, which both evaluators navigate identically, so a small heuristic term
+// rarely flips a game's winner (a +/-40 KO-proximity term, even scaled to 800,
+// changed 0 of 24 games across the diverse board set).  Use this harness for
+// LARGE changes (new terms, different search depth); for the small-tweak quality
+// signal, rely on src/scenarios.test.ts (decision agreement on tactical
+// positions), which is the sensitive instrument and the actual regression guard.
 import type { GameState } from './types.js';
 import { playGame } from './selfplay.js';
 import type { EvalFn } from './recommend.js';
