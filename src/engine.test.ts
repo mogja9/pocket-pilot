@@ -463,6 +463,32 @@ test('passive: Levitate gives the active free retreat while it holds energy', ()
   assert.equal(after.players[0]!.bench.find((b) => b.card.name === 'Giratina')!.energy.length, 1, 'no energy was discarded');
 });
 
+test('evolution timing: cannot evolve a just-played Pokemon, nor evolve twice in a turn', () => {
+  const mk = (playedTurn: number): GameState => {
+    const active = ip('Charmander');
+    active.turnPlayedOrEvolved = playedTurn;
+    return {
+      toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+      players: [
+        { name: 'me', active, bench: [], hand: [findCard('Charmeleon'), findCard('Charizard')], deckCount: 10,
+          discardCount: 0, points: 0, energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+        { name: 'opp', active: ip('Pikachu ex', ['Lightning']), bench: [], hand: [], deckCount: 10, discardCount: 0,
+          points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+      ],
+    };
+  };
+  // Played THIS turn (turnPlayedOrEvolved == turn) -> no evolve.
+  assert.ok(!legalMoves(mk(5)).some((m) => m.type === 'evolve'), 'a Pokemon played this turn cannot evolve');
+  // In play since a prior turn -> can evolve to Charmeleon.
+  const ready = mk(4);
+  const evo = legalMoves(ready).find((m) => m.type === 'evolve');
+  assert.ok(evo, 'a Pokemon in play since last turn can evolve');
+  const after = applyMove(ready, evo!);
+  assert.equal(after.players[0]!.active!.card.name, 'Charmeleon', 'evolved to Charmeleon');
+  // The fresh Charmeleon cannot evolve again to Charizard the same turn.
+  assert.ok(!legalMoves(after).some((m) => m.type === 'evolve'), 'cannot evolve twice in one turn');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');

@@ -43,4 +43,18 @@ t('the mirror match also resolves (no stall from symmetric eval)', () => {
   assert.notEqual(out.winner, null, `mirror stalled after ${out.turns} turns:\n${out.log.join('\n')}`);
 });
 
+t('the first player generates no energy on its first turn (Pocket rule)', () => {
+  const mk = (firstTurn: boolean): GameState => ({
+    toMove: 0, turn: 1, isFirstPlayerFirstTurn: firstTurn,
+    players: [side(ip('Charizard ex'), [], ['Fire']), side(ip('Pikachu ex'), [], ['Lightning'])],
+  });
+  // One ply: with the restriction, P0 has no generated energy, so it cannot attach.
+  const restricted = playGame(mk(true), { maxTurns: 1 });
+  assert.ok(restricted.log[0] !== undefined && !restricted.log[0].includes('Attach'),
+    `first player should not attach on its first turn, got: ${restricted.log[0]}`);
+  // Without the restriction, the first player generates energy and attaches.
+  const normal = playGame(mk(false), { maxTurns: 1 });
+  assert.ok(normal.log[0]?.includes('Attach'), `normally the first player attaches turn 1, got: ${normal.log[0]}`);
+});
+
 console.log(`\n${passed} passed`);
