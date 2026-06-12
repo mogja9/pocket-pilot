@@ -1,4 +1,4 @@
-import type { GameState, InPlay, Condition } from './types.js';
+import type { GameState, InPlay, Condition, PlayerState } from './types.js';
 
 // A small registry of ACTIVATED, once-per-turn abilities the engine can model
 // (the dataset has the ability text but no structure).  Keyed by ability name.
@@ -96,4 +96,30 @@ export const ABILITIES: Record<string, AbilityEffect> = {
 
 export function abilityEffect(name: string): AbilityEffect | undefined {
   return ABILITIES[name];
+}
+
+// ---- PASSIVE abilities ------------------------------------------------------
+// These modify the rules continuously rather than being activated.  The engine
+// consults these hooks (in rules.ts) instead of dispatching a move.
+
+// Flat damage reduction a defender's passive grants ("takes -N damage from
+// attacks"), applied to the final hit after weakness.
+const DAMAGE_REDUCTION: Record<string, number> = {
+  'Hard Coat': 20,  // Melmetal
+  'Shell Armor': 10, // Cloyster
+};
+export function damageReductionFor(defender: InPlay): number {
+  return DAMAGE_REDUCTION[defender.card.ability?.name ?? ''] ?? 0;
+}
+
+// Passives that grant the Active a free retreat.  "Fluffy Flight" (Jumpluff)
+// frees the active from anywhere in play; "Levitate" (Giratina) frees only
+// itself, and only while it holds energy.  (The "1 less" bench passives are not
+// modeled yet.)
+const FREE_RETREAT_TEAM = new Set(['Fluffy Flight']);
+export function freeRetreatActive(player: PlayerState): boolean {
+  const a = player.active;
+  if (!a) return false;
+  if (a.card.ability?.name === 'Levitate' && a.energy.length > 0) return true;
+  return [a, ...player.bench].some((x) => x && FREE_RETREAT_TEAM.has(x.card.ability?.name ?? ''));
 }

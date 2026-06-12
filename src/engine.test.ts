@@ -436,6 +436,33 @@ test('ability: Victreebel Fragrance Trap drags up a benched basic', () => {
   assert.ok(after.players[1]!.bench.some((b) => b.card.name === 'Snorlax'), 'the old active was benched');
 });
 
+test('passive: Hard Coat reduces incoming damage by 20', () => {
+  const snorlax = ip('Snorlax');
+  const rollout = snorlax.card.attacks.find((a) => a.name === 'Rollout')!; // flat 70, Colorless (no weakness anywhere)
+  const onMelmetal = expectedDamage(rollout, snorlax, ip('Melmetal')); // Hard Coat -20
+  const onPlain = expectedDamage(rollout, snorlax, ip('Articuno ex'));
+  assert.equal(onPlain, 70);
+  assert.equal(onPlain - onMelmetal, 20, 'Hard Coat shaves 20 off the hit');
+});
+
+test('passive: Levitate gives the active free retreat while it holds energy', () => {
+  const state: GameState = {
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Giratina', ['Psychic']), bench: [ip('Snorlax')], hand: [], deckCount: 0, discardCount: 0,
+        points: 0, energyZone: ['Psychic'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning']), bench: [], hand: [], deckCount: 0, discardCount: 0,
+        points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  // Giratina's retreat cost is 3 but it holds only 1 energy: free retreat makes it legal.
+  const retreat = legalMoves(state).find((m) => m.type === 'retreat');
+  assert.ok(retreat, 'retreat is legal despite only 1 energy (Levitate)');
+  const after = applyMove(state, retreat!);
+  assert.equal(after.players[0]!.active!.card.name, 'Snorlax', 'switched in the benched Pokemon');
+  assert.equal(after.players[0]!.bench.find((b) => b.card.name === 'Giratina')!.energy.length, 1, 'no energy was discarded');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');

@@ -4,7 +4,7 @@ import type {
 import { BENCH_SIZE, WEAKNESS_BONUS } from './types.js';
 import { scalingFor } from './effects.js';
 import { trainerEffect } from './trainers.js';
-import { abilityEffect } from './abilities.js';
+import { abilityEffect, damageReductionFor, freeRetreatActive } from './abilities.js';
 
 // A single legal action a player can take.  Attacks and endTurn are terminal
 // (they end the turn); the rest can be chained within a turn.
@@ -65,6 +65,8 @@ export function expectedDamage(
   if (dmg > 0 && defender.card.weakness && attacker.card.type === defender.card.weakness) {
     dmg += WEAKNESS_BONUS;
   }
+  // A defender's damage-reduction passive (Hard Coat / Shell Armor) applies last.
+  if (dmg > 0) dmg = Math.max(0, dmg - damageReductionFor(defender));
   return dmg;
 }
 
@@ -101,7 +103,7 @@ export function legalMoves(state: GameState): Move[] {
 
   // Retreat (swap active with a benched Pokemon), if we can pay the cost
   // (reduced by X Speed this turn).
-  const retreatCost = me.active ? Math.max(0, me.active.card.retreatCost - (me.retreatReduction ?? 0)) : 0;
+  const retreatCost = !me.active ? 0 : freeRetreatActive(me) ? 0 : Math.max(0, me.active.card.retreatCost - (me.retreatReduction ?? 0));
   if (me.active && !activeLocked && me.bench.length > 0 && me.active.energy.length >= retreatCost) {
     me.bench.forEach((_, i) => moves.push({ type: 'retreat', benchIndex: i }));
   }
@@ -176,7 +178,7 @@ export function applyMove(state: GameState, move: Move): GameState {
     case 'retreat': {
       const benched = me.bench[move.benchIndex];
       if (me.active && benched) {
-        const cost = Math.max(0, me.active.card.retreatCost - (me.retreatReduction ?? 0));
+        const cost = freeRetreatActive(me) ? 0 : Math.max(0, me.active.card.retreatCost - (me.retreatReduction ?? 0));
         me.active.energy.splice(0, cost); // pay cost
         me.bench[move.benchIndex] = me.active;
         me.active = benched;
