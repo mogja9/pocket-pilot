@@ -44,4 +44,10 @@ t('cardDetailEl renders an ability with its text', () => {
   assert.ok(txt.includes('Ability: Water Shuriken'), 'ability name shown');
   assert.ok(txt.includes('20 damage'), 'ability text shown');
 });
+t('cardDetailEl shows compact rider tags for parsed mechanics', () => {
+  const sleepTags = [...cardDetailEl(findCard('Frosmoth')).querySelectorAll('.ci-tag')].map((e) => e.textContent);
+  assert.ok(sleepTags.includes('sleep'), `expected a sleep tag, got ${sleepTags}`);
+  const healTags = [...cardDetailEl(findCard('Vaporeon')).querySelectorAll('.ci-tag')].map((e) => e.textContent);
+  assert.ok(healTags.includes('heal 30'), `expected a heal tag, got ${healTags}`);
+});
 console.log(`\n${passed} passed`);
