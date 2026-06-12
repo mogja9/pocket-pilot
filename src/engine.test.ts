@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { GameState, InPlay, ConcreteEnergy, PlayerState } from './types.js';
 import { findCard, findAnyCard, ALL_POKEMON, ALL_CARDS } from './data.js';
 import { canPayCost, expectedDamage, legalMoves, applyMove } from './rules.js';
-import { recommend, describeMove } from './recommend.js';
+import { recommend, describeMove, summarizeBestLine } from './recommend.js';
 
 let passed = 0;
 function test(name: string, fn: () => void) {
@@ -237,6 +237,26 @@ test('heal rider: a drain attack heals the attacker', () => {
   };
   const after = applyMove(state, { type: 'attack', attackIndex: bdIdx });
   assert.equal(after.players[0]!.active!.damage, 20, 'Bubble Drain healed 30 off the attacker (50 -> 20)');
+});
+
+test('summarizeBestLine: reports the point swing and KO of the Crimson Storm line', () => {
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'You', active: ip('Charizard ex', ['Fire', 'Fire', 'Fire']),
+        bench: [ip('Articuno ex')], hand: [], deckCount: 18, discardCount: 0, points: 0,
+        energyZone: ['Fire'], pendingEnergy: 'Fire', energyAttachedThisTurn: false },
+      { name: 'Opp', active: ip('Pikachu ex', ['Lightning']), bench: [ip('Articuno ex')],
+        hand: [], deckCount: 18, discardCount: 0, points: 0,
+        energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const s = summarizeBestLine(state)!;
+  assert.ok(s, 'produces a summary');
+  assert.equal(s.pointSwing, 2, 'KOing Pikachu ex (an ex) swings 2 points');
+  assert.equal(s.kos, true);
+  assert.equal(s.myPoints, 2);
+  assert.match(s.text, /takes 2 points/);
 });
 
 test('explanation: moves are annotated from the state delta (KO, sleep)', () => {

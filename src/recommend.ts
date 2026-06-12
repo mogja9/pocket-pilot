@@ -31,20 +31,24 @@ function searchTurn(state: GameState, scoreTerminal: (s: GameState) => number, d
   return { value: scoreTerminal(after), plan: [{ type: 'endTurn' }], state: after };
 }
 
-// Value to `me` of a state where MY turn just ended (opponent to move), after
-// the opponent plays their best reply.  This is what makes the engine avoid
-// hanging a Pokemon to a lethal counterattack.
-function postReplyValue(stateAfterMyTurn: GameState, me: 0 | 1): number {
-  const base = evaluate(stateAfterMyTurn, me);
-  if (Math.abs(base) >= DECIDED) return base; // game already decided; no reply
+// The state after the opponent plays their best reply to a state where MY turn
+// just ended.  Returns the input unchanged when the game is already decided.
+function bestReplyState(stateAfterMyTurn: GameState, me: 0 | 1): GameState {
+  if (Math.abs(evaluate(stateAfterMyTurn, me)) >= DECIDED) return stateAfterMyTurn;
   const opp = (me ^ 1) as 0 | 1;
   // Give the opponent a plausible generated energy to use on their reply.
   const oppP = stateAfterMyTurn.players[opp];
   if (!oppP.pendingEnergy && !oppP.energyAttachedThisTurn && oppP.energyZone[0]) {
     oppP.pendingEnergy = oppP.energyZone[0];
   }
-  const reply = searchTurn(stateAfterMyTurn, (s) => evaluate(s, opp), OPP_TURN_DEPTH);
-  return evaluate(reply.state, me);
+  return searchTurn(stateAfterMyTurn, (s) => evaluate(s, opp), OPP_TURN_DEPTH).state;
+}
+
+// Value to `me` of a state where MY turn just ended (opponent to move), after
+// the opponent plays their best reply.  This is what makes the engine avoid
+// hanging a Pokemon to a lethal counterattack.
+function postReplyValue(stateAfterMyTurn: GameState, me: 0 | 1): number {
+  return evaluate(bestReplyState(stateAfterMyTurn, me), me);
 }
 
 export interface Recommendation {
@@ -138,4 +142,47 @@ export function describeMove(state: GameState, m: Move): string {
   const label = baseLabel(state, m);
   const note = moveAnnotation(state, m);
   return note ? `${label} (${note})` : label;
+}
+
+export interface BestLineSummary {
+  move: Move;          // the recommended first move
+  plan: Move[];        // the full planned turn
+  pointSwing: number;  // points you gain this turn
+  kos: boolean;        // does the line knock something out
+  survivesReply: boolean; // does your active live through the opponent's best reply
+  myPoints: number;    // your points after the line
+  oppPoints: number;   // opponent points after their reply
+  won: boolean;        // the line reaches game point (>=3)
+  text: string;        // one-line plain-language verdict
+}
+
+// Simulate the recommended line and the opponent's best reply into a plain
+// verdict: what it scores, whether your active survives, and the resulting
+// standing.  Reuses the same 2-ply the ranking is built on.
+export function summarizeBestLine(state: GameState, recs: Recommendation[] = recommend(state)): BestLineSummary | null {
+  const best = recs[0];
+  if (!best) return null;
+  const me = state.toMove;
+  const opp = (me ^ 1) as 0 | 1;
+
+  let s = state;
+  for (const mv of best.plan) s = applyMove(s, mv);
+  if (s.toMove === me) s = applyMove(s, { type: 'endTurn' }); // make sure the turn passed
+  const pointSwing = s.players[me]!.points - state.players[me]!.points;
+  const myPoints = s.players[me]!.points;
+  const won = myPoints >= 3;
+
+  const reply = bestReplyState(s, me);
+  const oppPoints = reply.players[opp]!.points;
+  const survivesReply = oppPoints === s.players[opp]!.points; // opponent scored nothing on the reply
+
+  const bits: string[] = [describeMove(state, best.move)];
+  if (won) bits.push('wins the game');
+  else if (pointSwing > 0) bits.push(`takes ${pointSwing} point${pointSwing > 1 ? 's' : ''}`);
+  if (!won) bits.push(survivesReply ? 'your active survives the reply' : 'but your active falls to the reply');
+  const standing = myPoints === oppPoints ? `tied ${myPoints}-${oppPoints}`
+    : myPoints > oppPoints ? `you lead ${myPoints}-${oppPoints}` : `you trail ${myPoints}-${oppPoints}`;
+  bits.push(standing);
+
+  return { move: best.move, plan: best.plan, pointSwing, kos: pointSwing > 0, survivesReply, myPoints, oppPoints, won, text: bits.join('; ') };
 }
