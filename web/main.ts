@@ -7,8 +7,9 @@ import { el, clear } from './dom.js';
 import { cardImageUrl } from './images.js';
 import { cardDetailEl } from './card-view.js';
 import { slotTargetFromPoint } from './dnd.js';
+import { TRAINERS } from '../src/trainers.js';
 
-const { findCard, hasCard, findAnyCard, ALL_POKEMON } = buildIndex(rawCards as RawCard[]);
+const { findCard, hasCard, findAnyCard, ALL_POKEMON, ALL_CARDS } = buildIndex(rawCards as RawCard[]);
 
 const ENERGIES: ConcreteEnergy[] = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal'];
 const ABBR: Record<ConcreteEnergy, string> = { Grass: 'G', Fire: 'R', Water: 'W', Lightning: 'L', Psychic: 'P', Fighting: 'F', Darkness: 'D', Metal: 'M' };
@@ -78,7 +79,40 @@ function place(side: Side, idx: number, name: string): void {
   changed();
 }
 function removeSlot(side: Side, idx: number): void { board[side][idx] = null; if (selected?.side === side && selected.idx === idx) selected = null; changed(); }
-function changed(): void { save(); renderBoard(); renderEditor(); renderRecs(); }
+function changed(): void { save(); renderBoard(); renderEditor(); renderHand(); renderRecs(); }
+
+// ---- hand (cards you hold) --------------------------------------------------
+const handEl = el('div', { class: 'card hand' });
+const TRAINER_NAMES = Object.keys(TRAINERS).filter((n) => !!findAnyCard(n));
+
+function addToHand(name: string): void {
+  if (!findAnyCard(name)) return;
+  board.hand.push(name);
+  save(); renderHand(); renderRecs();
+}
+function addByName(query: string): void {
+  const q = query.trim();
+  if (!q) return;
+  const exact = findAnyCard(q);
+  const card = exact ?? ALL_CARDS.find((c) => c.name.toLowerCase() === q.toLowerCase())
+    ?? ALL_CARDS.find((c) => c.name.toLowerCase().includes(q.toLowerCase()));
+  if (card) addToHand(card.name);
+}
+function removeFromHand(i: number): void { board.hand.splice(i, 1); save(); renderHand(); renderRecs(); }
+
+function renderHand(): void {
+  clear(handEl);
+  const quick = el('div', { class: 'erow' }, el('span', { class: 'muted' }, 'add trainer:'));
+  for (const n of TRAINER_NAMES) quick.append(el('button', { class: 'hb', type: 'button', title: n, onClick: () => addToHand(n) }, n));
+  const input = el('input', { class: 'handinput', placeholder: 'add any card by name + Enter', autocomplete: 'off' }) as HTMLInputElement;
+  input.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') { addByName(input.value); input.value = ''; } });
+  const chips = el('div', { class: 'handchips' });
+  if (!board.hand.length) chips.append(el('span', { class: 'muted' }, 'empty - add trainers / cards you hold'));
+  board.hand.forEach((name, i) => {
+    chips.append(el('span', { class: 'hchip' }, name, el('button', { class: 'x', type: 'button', title: 'remove', onClick: () => removeFromHand(i) }, 'x')));
+  });
+  handEl.append(el('b', {}, 'Your hand'), quick, input, chips);
+}
 
 // Touch-drag: drag a card with a finger onto the slot under it.  Complements the
 // desktop HTML5 drag and the tap-to-place fallback; both stay working.
@@ -247,7 +281,7 @@ function loadExample(): void {
     { name: 'Articuno ex', energy: [], damage: 0, conditions: [] }, null,
   ];
   board.opp = [{ name: 'Pikachu ex', energy: ['Lightning', 'Lightning'], damage: 0, conditions: [] }, null, null, null];
-  board.pending = 'Fire'; board.myPts = 0; board.oppPts = 0; board.hand = [];
+  board.pending = 'Fire'; board.myPts = 0; board.oppPts = 0; board.hand = ['Giovanni'];
   pendingSel.value = 'Fire'; myPtsEl.value = '0'; oppPtsEl.value = '0';
   selected = { side: 'mine', idx: 0 };
   changed();
@@ -280,6 +314,7 @@ app.append(
       el('button', { type: 'button', onClick: clearBoard }, 'Clear'),
     ),
     editorEl,
+    handEl,
   ),
   el('div', { class: 'right' },
     el('div', { class: 'card' }, searchInput, searchGrid),
@@ -290,4 +325,4 @@ app.append(
 load();
 if (board.pending) pendingSel.value = board.pending;
 myPtsEl.value = String(board.myPts); oppPtsEl.value = String(board.oppPts);
-renderBoard(); renderEditor(); renderSearch(''); renderRecs();
+renderBoard(); renderEditor(); renderHand(); renderSearch(''); renderRecs();

@@ -302,6 +302,25 @@ test('explanation: moves are annotated from the state delta (KO, sleep)', () => 
   assert.match(describeMove(sleepState, { type: 'attack', attackIndex: psIdx }), /sleep/);
 });
 
+test('hand: a Potion in hand surfaces as a heal play for a damaged active', () => {
+  const potion = findAnyCard('Potion')!;
+  const active = ip('Charizard ex', ['Fire', 'Fire', 'Fire']);
+  active.damage = 60;
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'You', active, bench: [], hand: [potion], deckCount: 18, discardCount: 0, points: 0,
+        energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'Opp', active: ip('Pikachu ex', ['Lightning']), bench: [], hand: [], deckCount: 18, discardCount: 0,
+        points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const recs = recommend(state);
+  const potionPlay = recs.find((r) => r.move.type === 'playTrainer');
+  assert.ok(potionPlay, 'Potion in hand yields a playTrainer recommendation');
+  assert.match(describeMove(state, potionPlay!.move), /Potion/);
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
