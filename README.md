@@ -10,7 +10,7 @@ imperfect-information card game: enumerate the legal actions for the turn, searc
 the action sequences (setup plays then an attack), and score the resulting
 positions with a heuristic evaluator.
 
-## Status: v0.2 (engine core + real card data)
+## Status: v0.3 (engine core + real card data + 2-ply defense)
 
 Working:
 
@@ -28,8 +28,10 @@ Working:
   damage (coin-flip EV + Pocket weakness).
 - Evaluator (`src/evaluate.ts`): points-first heuristic over board HP, active
   pressure, energy tempo, and board presence.
-- Recommender (`src/recommend.ts`): bounded full-turn search that ranks each
-  first move by the best turn-equity reachable after it.
+- Recommender (`src/recommend.ts`): **2-ply** search. It plans my full turn and
+  scores each line by my equity AFTER the opponent's best reply, so it plays
+  defensively (e.g. retreats a threatened ex rather than hanging it to a lethal
+  2-point KO) instead of greedily maximizing this turn's board.
 - A small hand-entered seed of real cards (`src/cards.ts`).
 
 ## Try it
@@ -48,8 +50,8 @@ The demo shows the engine discovering that "attach Fire, then Crimson Storm"
 
 1. Done: real card dataset integrated (see Status). Next data step: enrich
    attack effect text (the `+`/`x` riders and abilities) from a fuller source.
-2. Model the opponent's reply (2-ply: my best turn vs their best response) and
-   special conditions (sleep/paralysis/poison) and ability/trainer effects.
+2. Done: 2-ply opponent-reply modeling (see Status). Next: special conditions
+   (sleep/paralysis/poison) and ability/trainer effects.
 3. Board-dependent attacks (e.g. Pikachu ex scaling per benched Lightning).
 4. Imperfect-information search: determinize the hidden hand/deck and run
    ISMCTS instead of the heuristic 1-turn lookahead.

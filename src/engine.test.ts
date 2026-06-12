@@ -60,4 +60,34 @@ test('recommend: finds the attach-then-Crimson-Storm KO of an ex', () => {
   assert.ok(best.value >= 2000, `expected KO-of-ex equity, got ${best.value}`);
 });
 
+test('2-ply: retreats a threatened ex instead of hanging it to a lethal reply', () => {
+  // My Pikachu ex (120 HP) is active and CAN attack, but the opponent's Moltres
+  // can Sky Attack for 130 next turn -> a 2-point KO.  Snorlax (150 HP) survives
+  // 130.  A 1-ply engine attacks (deals damage now); a 2-ply engine must retreat.
+  const moltres = findCard('Moltres');
+  const lethal = moltres.attacks.find((a) => a.damage >= 120);
+  assert.ok(lethal, 'test setup: expected a Moltres with a >=120 flat attack');
+  const state: GameState = {
+    toMove: 0, turn: 8, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'You', active: ip('Pikachu ex', ['Lightning', 'Lightning']),
+        bench: [ip('Snorlax')], hand: [], deckCount: 15, discardCount: 0, points: 0,
+        energyZone: ['Lightning'], pendingEnergy: 'Lightning', energyAttachedThisTurn: false },
+      { name: 'Opp', active: ip('Moltres', ['Fire', 'Fire', 'Fire']),
+        bench: [ip('Articuno ex')], hand: [], deckCount: 15, discardCount: 0, points: 0,
+        energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const recs = recommend(state);
+  const top = recs[0]!;
+  // The best line must plan to retreat the threatened ex (multiple first moves
+  // tie since attach-then-retreat reaches the same safe state).
+  assert.ok(top.plan.some((m) => m.type === 'retreat'),
+    `top plan should retreat the ex; got ${top.plan.map((m) => m.type).join('>')}`);
+  // And attacking while staying active (hanging the ex) must score strictly worse.
+  const attackLine = recs.find((r) => r.move.type === 'attack');
+  assert.ok(attackLine && attackLine.value < top.value,
+    'hanging the ex to a lethal reply should score worse than retreating');
+});
+
 console.log(`\n${passed} passed`);
