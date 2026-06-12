@@ -14,4 +14,13 @@ const app = dom.window.document.getElementById('app')!;
 assert.notEqual(app.textContent?.trim(), 'loading engine...', 'app should render past the loading state');
 assert.ok(app.querySelector('input'), 'form inputs should be present');
 assert.ok(app.querySelector('button'), 'buttons should be present');
+// The legend is collapsed by default and expands on toggle.
+const helpToggle = app.querySelector('.helptoggle') as HTMLButtonElement | null;
+const helpBody = app.querySelector('.helpbody') as HTMLElement | null;
+assert.ok(helpToggle && helpBody, 'legend toggle and body are present');
+assert.equal(helpBody!.style.display, 'none', 'legend is collapsed by default');
+helpToggle!.click();
+assert.notEqual(helpBody!.style.display, 'none', 'legend expands when toggled');
+assert.ok(helpBody!.textContent?.includes('WIN'), 'legend explains the verdict chips');
+
 console.log(`app smoke ok: #app rendered ${app.querySelectorAll('input').length} inputs, ${app.querySelectorAll('button').length} buttons`);

@@ -346,9 +346,38 @@ copyBtn.addEventListener('click', () => {
 
 searchInput.addEventListener('input', () => renderSearch(searchInput.value));
 
+// ---- legend / help (collapsible, remembered) --------------------------------
+const HELP_KEY = 'pocket-pilot:help';
+let helpOpen = false;
+try { helpOpen = localStorage.getItem(HELP_KEY) === '1'; } catch { /* ignore */ }
+const helpBody = el('div', { class: 'helpbody' });
+const helpToggle = el('button', { class: 'helptoggle', type: 'button' }, '?') as HTMLButtonElement;
+function renderHelp(): void {
+  clear(helpBody);
+  helpToggle.textContent = helpOpen ? 'x' : '?';
+  helpToggle.title = helpOpen ? 'hide help' : 'how to read this';
+  helpBody.style.display = helpOpen ? '' : 'none';
+  if (!helpOpen) return;
+  helpBody.append(
+    el('div', { class: 'helprow' }, el('b', {}, 'Verdict '), 'WIN = reaches 3 points; +N = scores N points this turn; SAFE = your active survives the opponent reply; RISK = your active falls to the reply.'),
+    el('div', { class: 'helprow' }, el('b', {}, 'Card tags '), 'coin xN / N% hit = coin-flip attack; sleep / poison / paralyze / burn / confuse = status it inflicts; discard / strip = energy removed; heal = damage healed; snipe / spread = damage to the opponent bench.'),
+    el('div', { class: 'helprow' }, el('b', {}, 'Build the board '), 'drag a search tile onto a slot, drag with your finger on mobile, or tap a tile then tap a slot. Click a placed card to set its energy, damage, and conditions; add trainers you hold under Your hand; set the opponent Energy Zone so the threat is accurate.'),
+  );
+}
+helpToggle.addEventListener('click', () => {
+  helpOpen = !helpOpen;
+  try { localStorage.setItem(HELP_KEY, helpOpen ? '1' : '0'); } catch { /* ignore */ }
+  renderHelp();
+});
+const helpCard = el('div', { class: 'card helpcard' },
+  el('div', { class: 'helphead' }, el('span', { class: 'muted' }, 'How to read this'), helpToggle),
+  helpBody,
+);
+
 const app = document.getElementById('app')!;
 app.className = 'appgrid';
 app.append(
+  helpCard,
   el('div', { class: 'left' },
     boardEl,
     el('div', { class: 'card controls' },
@@ -372,4 +401,4 @@ load();
 if (!Array.isArray(board.oppZone)) board.oppZone = [];
 if (board.pending) pendingSel.value = board.pending;
 myPtsEl.value = String(board.myPts); oppPtsEl.value = String(board.oppPts);
-renderBoard(); renderEditor(); renderHand(); renderOppZone(); renderSearch(''); renderRecs();
+renderHelp(); renderBoard(); renderEditor(); renderHand(); renderOppZone(); renderSearch(''); renderRecs();

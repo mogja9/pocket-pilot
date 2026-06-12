@@ -18,6 +18,14 @@
       .appgrid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(280px, 1fr); gap: 12px; max-width: 1100px; margin: 0 auto; }
       @media (max-width: 760px) { .appgrid { grid-template-columns: 1fr; } }
 
+      /* legend / help */
+      .helpcard { grid-column: 1 / -1; padding: 8px 10px; }
+      .helphead { display: flex; align-items: center; justify-content: space-between; }
+      .helptoggle { width: 24px; height: 24px; padding: 0; line-height: 1; }
+      .helpbody { margin-top: 6px; }
+      .helprow { font-size: 12px; color: #aab2bf; margin: 4px 0; line-height: 1.5; }
+      .helprow b { color: #cfd6e0; }
+
       /* battle board */
       .board { background: radial-gradient(circle at 50% 50%, #1d2430, #14171d); border: 1px solid #2a2f3a; border-radius: 12px; padding: 12px; }
       .side { display: flex; flex-direction: column; gap: 8px; }
