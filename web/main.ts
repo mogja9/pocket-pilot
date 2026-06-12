@@ -21,7 +21,8 @@ const datalist = el('datalist', { id: 'cards' }, ...names.map((n) => el('option'
 const CONDITIONS: Condition[] = ['asleep', 'paralyzed', 'poisoned', 'burned', 'confused'];
 const CABBR: Record<Condition, string> = { asleep: 'Slp', paralyzed: 'Par', poisoned: 'Psn', burned: 'Brn', confused: 'Cnf' };
 
-interface Slot { root: HTMLElement; read: () => InPlay | null; set: (name: string, energy: ConcreteEnergy[]) => void; }
+interface SlotData { name: string; energy: ConcreteEnergy[]; damage: number; conditions: Condition[]; }
+interface Slot { root: HTMLElement; read: () => InPlay | null; getData: () => SlotData; setData: (d: SlotData) => void; }
 
 function createSlot(label: string): Slot {
   let energy: ConcreteEnergy[] = [];
@@ -34,13 +35,9 @@ function createSlot(label: string): Slot {
     el('button', { class: 'eb', type: 'button', title: e, onClick: () => { energy.push(e); render(); } }, ABBR[e]),
   );
   const clr = el('button', { class: 'eb clr', type: 'button', title: 'clear energy', onClick: () => { energy = []; render(); } }, 'x');
-  const cBtns = CONDITIONS.map((c) => {
-    const b = el('button', { class: 'cb', type: 'button', title: c }, CABBR[c]);
-    b.addEventListener('click', () => {
-      if (conds.has(c)) { conds.delete(c); b.classList.remove('on'); } else { conds.add(c); b.classList.add('on'); }
-    });
-    return b;
-  });
+  const cBtns = CONDITIONS.map((c) =>
+    el('button', { class: 'cb', type: 'button', title: c, onClick: () => { if (conds.has(c)) conds.delete(c); else conds.add(c); syncConds(); } }, CABBR[c]));
+  const syncConds = () => CONDITIONS.forEach((c, i) => cBtns[i]!.classList.toggle('on', conds.has(c)));
   render();
   const root = el('div', { class: 'slot' },
     el('label', {}, label),
@@ -57,7 +54,16 @@ function createSlot(label: string): Slot {
       if (conds.size) ip.conditions = [...conds];
       return ip;
     },
-    set: (name, e) => { nameInput.value = name; energy = [...e]; render(); },
+    getData: () => ({ name: nameInput.value.trim(), energy: [...energy], damage: Math.max(0, Number(dmgInput.value) || 0), conditions: [...conds] }),
+    setData: (d) => {
+      nameInput.value = d.name;
+      energy = [...d.energy];
+      dmgInput.value = String(d.damage);
+      conds.clear();
+      d.conditions.forEach((c) => conds.add(c));
+      render();
+      syncConds();
+    },
   };
 }
 
@@ -131,13 +137,47 @@ function runRecommend() {
     el('b', {}, 'Recommended plays'), list,
     el('b', {}, 'Best line this turn'), lineDiv,
   );
+  saveState();
+}
+
+const STORAGE_KEY = 'pocket-pilot:board';
+
+function saveState(): void {
+  const data = {
+    my: mySlots.map((s) => s.getData()),
+    opp: oppSlots.map((s) => s.getData()),
+    hand: handInputs.map((i) => i.value.trim()),
+    pending: pendingSel.value, myPts: myPts.value, oppPts: oppPts.value,
+  };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch { /* storage unavailable */ }
+}
+
+function loadStored(): void {
+  let d: { my?: SlotData[]; opp?: SlotData[]; hand?: string[]; pending?: string; myPts?: string; oppPts?: string };
+  try { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return; d = JSON.parse(raw); } catch { return; }
+  (d.my ?? []).forEach((sd, i) => mySlots[i]?.setData(sd));
+  (d.opp ?? []).forEach((sd, i) => oppSlots[i]?.setData(sd));
+  (d.hand ?? []).forEach((v, i) => { const h = handInputs[i]; if (h) h.value = v; });
+  if (d.pending != null) pendingSel.value = d.pending;
+  if (d.myPts != null) myPts.value = d.myPts;
+  if (d.oppPts != null) oppPts.value = d.oppPts;
+}
+
+function clearAll(): void {
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  const empty: SlotData = { name: '', energy: [], damage: 0, conditions: [] };
+  [...mySlots, ...oppSlots].forEach((s) => s.setData(empty));
+  handInputs.forEach((i) => { i.value = ''; });
+  pendingSel.value = ''; myPts.value = '0'; oppPts.value = '0';
+  clear(results);
+  results.append(el('span', { class: 'muted' }, 'Cleared.'));
 }
 
 function loadExample() {
-  mySlots[0]!.set('Charizard ex', ['Fire', 'Fire', 'Fire']);
-  mySlots[1]!.set('Marowak ex', ['Fighting']);
-  mySlots[2]!.set('Articuno ex', []);
-  oppSlots[0]!.set('Pikachu ex', ['Lightning', 'Lightning']);
+  mySlots[0]!.setData({ name: 'Charizard ex', energy: ['Fire', 'Fire', 'Fire'], damage: 0, conditions: [] });
+  mySlots[1]!.setData({ name: 'Marowak ex', energy: ['Fighting'], damage: 0, conditions: [] });
+  mySlots[2]!.setData({ name: 'Articuno ex', energy: [], damage: 0, conditions: [] });
+  oppSlots[0]!.setData({ name: 'Pikachu ex', energy: ['Lightning', 'Lightning'], damage: 0, conditions: [] });
   pendingSel.value = 'Fire';
 }
 
@@ -161,6 +201,10 @@ app.append(
     el('label', {}, ' Opp points ', oppPts),
     el('button', { class: 'primary', type: 'button', onClick: runRecommend }, 'Recommend'),
     el('button', { type: 'button', onClick: loadExample }, 'Load example'),
+    el('button', { type: 'button', onClick: clearAll }, 'Clear'),
   ),
   results,
 );
+
+loadStored();                          // restore the last entered board
+app.addEventListener('input', saveState); // autosave on text/number/select edits
