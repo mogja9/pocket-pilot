@@ -259,6 +259,23 @@ test('summarizeBestLine: reports the point swing and KO of the Crimson Storm lin
   assert.match(s.text, /takes 2 points/);
 });
 
+test('summarizeBestLine: predicts the opponent\'s key reply attack', () => {
+  // I have no energy and an empty bench (only endTurn is legal), so my turn does
+  // nothing; the opponent should be predicted to reply with their attack.
+  const state: GameState = {
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'You', active: ip('Snorlax'), bench: [], hand: [], deckCount: 12, discardCount: 0, points: 0,
+        energyZone: [], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'Opp', active: ip('Marowak ex', ['Fighting', 'Fighting']), bench: [], hand: [], deckCount: 12,
+        discardCount: 0, points: 0, energyZone: ['Fighting'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const s = summarizeBestLine(state)!;
+  assert.ok(s.oppReply, 'predicts a reply');
+  assert.match(s.oppReply!.text, /Bonemerang/, 'names the opponent attack');
+});
+
 test('explanation: moves are annotated from the state delta (KO, sleep)', () => {
   const crimsonIdx = findCard('Charizard ex').attacks.findIndex((a) => a.name === 'Crimson Storm');
   const koState: GameState = {

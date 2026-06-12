@@ -190,11 +190,15 @@ function renderRecs(): void {
     verdict.append(el('span', { class: `vchip ${cls}` }, summary.won ? 'WIN' : summary.kos ? `+${summary.pointSwing}` : summary.survivesReply ? 'SAFE' : 'RISK'),
       el('span', { class: 'vtext' }, summary.text));
   }
+  const threat = el('div', {});
+  if (summary?.oppReply && !summary.won) {
+    threat.append(el('span', { class: 'muted' }, 'Opponent likely: '), el('span', { class: 'threat' }, summary.oppReply.text));
+  }
   const list = el('ol', {});
   for (const r of recs.slice(0, 6)) list.append(el('li', {}, describeMove(state, r.move), ' ', el('span', { class: 'eq' }, `(${r.value.toFixed(0)})`)));
   const line = el('div', {});
   if (best) { let st = state; best.plan.forEach((m, i) => { line.append(el('div', { class: 'step' }, `${i + 1}. ${describeMove(st, m)}`)); st = applyMove(st, m); }); }
-  recsEl.append(verdict, el('div', { class: 'muted' }, `${recs.length} plays, 2-ply`), el('b', {}, 'Best line'), line, el('b', {}, 'Ranked plays'), list);
+  recsEl.append(verdict, threat, el('div', { class: 'muted' }, `${recs.length} plays, 2-ply`), el('b', {}, 'Best line'), line, el('b', {}, 'Ranked plays'), list);
 }
 
 // ---- controls + layout ------------------------------------------------------

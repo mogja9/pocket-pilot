@@ -31,24 +31,28 @@ function searchTurn(state: GameState, scoreTerminal: (s: GameState) => number, d
   return { value: scoreTerminal(after), plan: [{ type: 'endTurn' }], state: after };
 }
 
-// The state after the opponent plays their best reply to a state where MY turn
-// just ended.  Returns the input unchanged when the game is already decided.
-function bestReplyState(stateAfterMyTurn: GameState, me: 0 | 1): GameState {
-  if (Math.abs(evaluate(stateAfterMyTurn, me)) >= DECIDED) return stateAfterMyTurn;
+// The opponent's best reply to a state where MY turn just ended: the move
+// sequence, the resulting state, and `from` (the primed pre-reply state the
+// plan applies to).  When the game is already decided there is no reply.
+function bestReply(stateAfterMyTurn: GameState, me: 0 | 1): { plan: Move[]; state: GameState; from: GameState } {
+  if (Math.abs(evaluate(stateAfterMyTurn, me)) >= DECIDED) {
+    return { plan: [], state: stateAfterMyTurn, from: stateAfterMyTurn };
+  }
   const opp = (me ^ 1) as 0 | 1;
   // Give the opponent a plausible generated energy to use on their reply.
   const oppP = stateAfterMyTurn.players[opp];
   if (!oppP.pendingEnergy && !oppP.energyAttachedThisTurn && oppP.energyZone[0]) {
     oppP.pendingEnergy = oppP.energyZone[0];
   }
-  return searchTurn(stateAfterMyTurn, (s) => evaluate(s, opp), OPP_TURN_DEPTH).state;
+  const r = searchTurn(stateAfterMyTurn, (s) => evaluate(s, opp), OPP_TURN_DEPTH);
+  return { plan: r.plan, state: r.state, from: stateAfterMyTurn };
 }
 
 // Value to `me` of a state where MY turn just ended (opponent to move), after
 // the opponent plays their best reply.  This is what makes the engine avoid
 // hanging a Pokemon to a lethal counterattack.
 function postReplyValue(stateAfterMyTurn: GameState, me: 0 | 1): number {
-  return evaluate(bestReplyState(stateAfterMyTurn, me), me);
+  return evaluate(bestReply(stateAfterMyTurn, me).state, me);
 }
 
 export interface Recommendation {
@@ -154,6 +158,7 @@ export interface BestLineSummary {
   oppPoints: number;   // opponent points after their reply
   won: boolean;        // the line reaches game point (>=3)
   text: string;        // one-line plain-language verdict
+  oppReply?: { move: Move; text: string }; // the opponent's predicted key reply move
 }
 
 // Simulate the recommended line and the opponent's best reply into a plain
@@ -172,9 +177,12 @@ export function summarizeBestLine(state: GameState, recs: Recommendation[] = rec
   const myPoints = s.players[me]!.points;
   const won = myPoints >= 3;
 
-  const reply = bestReplyState(s, me);
-  const oppPoints = reply.players[opp]!.points;
+  const reply = bestReply(s, me);
+  const oppPoints = reply.state.players[opp]!.points;
   const survivesReply = oppPoints === s.players[opp]!.points; // opponent scored nothing on the reply
+  // The opponent's key threat: their attack if they have one, else their last move.
+  const oppMove = reply.plan.find((mv) => mv.type === 'attack') ?? reply.plan[reply.plan.length - 1];
+  const oppReply = oppMove ? { move: oppMove, text: describeMove(reply.from, oppMove) } : undefined;
 
   const bits: string[] = [describeMove(state, best.move)];
   if (won) bits.push('wins the game');
@@ -184,5 +192,5 @@ export function summarizeBestLine(state: GameState, recs: Recommendation[] = rec
     : myPoints > oppPoints ? `you lead ${myPoints}-${oppPoints}` : `you trail ${myPoints}-${oppPoints}`;
   bits.push(standing);
 
-  return { move: best.move, plan: best.plan, pointSwing, kos: pointSwing > 0, survivesReply, myPoints, oppPoints, won, text: bits.join('; ') };
+  return { move: best.move, plan: best.plan, pointSwing, kos: pointSwing > 0, survivesReply, myPoints, oppPoints, won, text: bits.join('; '), oppReply };
 }
