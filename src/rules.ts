@@ -1,5 +1,5 @@
 import type {
-  GameState, PlayerState, InPlay, Attack, ConcreteEnergy, EnergyType,
+  GameState, PlayerState, InPlay, Attack, ConcreteEnergy, EnergyType, EnergyDiscard,
 } from './types.js';
 import { BENCH_SIZE, WEAKNESS_BONUS } from './types.js';
 import { scalingFor } from './effects.js';
@@ -190,6 +190,12 @@ export function applyMove(state: GameState, move: Move): GameState {
         if (atk.inflicts?.length) {
           opp.active.conditions = [...new Set([...(opp.active.conditions ?? []), ...atk.inflicts])];
         }
+        // Energy discards: from the attacker (a cost) and/or off the defender,
+        // so canPayCost in the opponent's reply sees the stripped energy.
+        for (const dsc of atk.discards ?? []) {
+          const tgt = dsc.target === 'self' ? me.active : opp.active;
+          if (tgt) discardEnergy(tgt, dsc);
+        }
         resolveKO(next, (next.toMove ^ 1) as 0 | 1); // the defender may be KO'd
       }
       endTurn(next);
@@ -200,6 +206,24 @@ export function applyMove(state: GameState, move: Move): GameState {
       break;
   }
   return next;
+}
+
+// Remove energy from a Pokemon per a discard rider.  A specific colour removes
+// only that colour (the game can't discard energy you don't have); an
+// unspecified discard takes from the front.
+function discardEnergy(ip: InPlay, dsc: EnergyDiscard): void {
+  if (dsc.amount === 'all') {
+    ip.energy = dsc.type ? ip.energy.filter((e) => e !== dsc.type) : [];
+    return;
+  }
+  if (dsc.type) {
+    let n = dsc.amount;
+    for (let i = ip.energy.length - 1; i >= 0 && n > 0; i--) {
+      if (ip.energy[i] === dsc.type) { ip.energy.splice(i, 1); n--; }
+    }
+  } else {
+    ip.energy.splice(0, Math.min(dsc.amount, ip.energy.length));
+  }
 }
 
 // If player `ownerIdx`'s active is KO'd, award points to the other player

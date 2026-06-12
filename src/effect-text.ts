@@ -6,7 +6,7 @@
 // Today it covers coin-flip DAMAGE riders (the largest, most regular family).
 // Status / energy / heal / draw riders are future work; unmatched text is left
 // for display only, never guessed at.
-import type { CoinFlipEffect, Condition } from './types.js';
+import type { CoinFlipEffect, Condition, ConcreteEnergy, EnergyDiscard } from './types.js';
 
 export interface CoinRider extends CoinFlipEffect {
   // When true the dataset's flat damage number is really the per-heads value
@@ -68,6 +68,34 @@ export function defenderConditionsFromText(text: string | undefined): Condition[
   for (const word of m[1]!.split(/\s+and\s+/)) {
     const cond = STATUS_WORD[word.trim()];
     if (cond && !out.includes(cond)) out.push(cond);
+  }
+  return out;
+}
+
+const ENERGY_LETTER: Record<string, ConcreteEnergy> = {
+  G: 'Grass', R: 'Fire', W: 'Water', L: 'Lightning', P: 'Psychic', F: 'Fighting', D: 'Darkness', M: 'Metal',
+};
+
+// Energy an attack GUARANTEES it discards.  As with status, only the standalone
+// capital "Discard ..." sentences are committed to; coin-gated "If heads,
+// discard ..." (lowercase) is left unmodeled for the deterministic applyMove.
+export function energyDiscardsFromText(text: string | undefined): EnergyDiscard[] {
+  if (!text) return [];
+  const out: EnergyDiscard[] = [];
+  const re = /(?:^|\.\s+)Discard (.*?) Energy from (this Pok[eé]mon|your opponent's Active Pok[eé]mon)/g;
+  for (const m of text.matchAll(re)) {
+    const desc = m[1]!;
+    const target: EnergyDiscard['target'] = m[2]!.startsWith('this') ? 'self' : 'defender';
+    const syms = [...desc.matchAll(/\[([A-Z])\]/g)].map((s) => ENERGY_LETTER[s[1]!]).filter((x): x is ConcreteEnergy => !!x);
+    const types = [...new Set(syms)];
+    const type = types.length === 1 ? types[0] : undefined; // only a single, unambiguous colour
+    let amount: number | 'all';
+    if (/\ball\b/.test(desc)) amount = 'all';
+    else {
+      const num = /(\d+)/.exec(desc);
+      amount = num ? Number(num[1]) : Math.max(1, syms.length); // "a"/"an" -> 1; symbol list -> its length
+    }
+    out.push({ target, amount, ...(type ? { type } : {}) });
   }
   return out;
 }

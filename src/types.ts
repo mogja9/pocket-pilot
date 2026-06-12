@@ -24,6 +24,14 @@ export interface CoinFlipEffect {
   successProbability?: number;
 }
 
+// Energy an attack discards as part of resolving: from the attacker itself
+// (a cost, e.g. Crimson Storm) or from the defender (strips their energy).
+export interface EnergyDiscard {
+  target: 'self' | 'defender';
+  amount: number | 'all';
+  type?: ConcreteEnergy; // a specific colour to remove; undefined = any
+}
+
 export interface Attack {
   name: string;
   cost: EnergyType[];      // e.g. ['Fire','Fire','Colorless']
@@ -31,6 +39,7 @@ export interface Attack {
   coin?: CoinFlipEffect;   // optional coin-flip rider
   variable?: boolean;      // damage string had a + or x (conditional/scaling); base is a floor
   inflicts?: Condition[];  // special conditions this attack puts on the defender (guaranteed)
+  discards?: EnergyDiscard[]; // energy this attack discards (from self and/or the defender)
   text?: string;
 }
 

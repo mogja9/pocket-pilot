@@ -198,6 +198,28 @@ test('status rider: an attack that sleeps the defender blocks their reply', () =
   assert.ok(!legalMoves(after).some((m) => m.type === 'attack'), 'asleep defender cannot attack back');
 });
 
+test('energy-discard rider: stripping the defender can deny their reply', () => {
+  const gyarados = findCard('Gyarados');
+  const hbIdx = gyarados.attacks.findIndex((a) => a.name === 'Hyper Beam');
+  assert.deepEqual(gyarados.attacks[hbIdx]!.discards, [{ target: 'defender', amount: 1 }]);
+  const rollout = findCard('Snorlax').attacks.find((a) => a.name === 'Rollout')!;
+  const state: GameState = {
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Gyarados', ['Water', 'Water', 'Water', 'Water']), bench: [], hand: [], deckCount: 10,
+        discardCount: 0, points: 0, energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Snorlax', ['Water', 'Water', 'Water', 'Water']), bench: [], hand: [], deckCount: 10,
+        discardCount: 0, points: 0, energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  assert.ok(canPayCost(['Water', 'Water', 'Water', 'Water'], rollout.cost), 'before: Snorlax can pay Rollout');
+  const after = applyMove(state, { type: 'attack', attackIndex: hbIdx });
+  assert.equal(after.players[1]!.active!.damage, 100, 'defender took Hyper Beam and survived');
+  assert.equal(after.players[1]!.active!.energy.length, 3, 'one energy was discarded off the defender');
+  assert.ok(!canPayCost(after.players[1]!.active!.energy, rollout.cost), 'after: can no longer pay its 4-cost attack');
+  assert.ok(!legalMoves(after).some((m) => m.type === 'attack'), 'so the defender has no attack on its reply');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
