@@ -8,6 +8,11 @@ const DECIDED = 1e5;        // |eval| above this means the game is already won/l
 
 type TurnResult = { value: number; plan: Move[]; state: GameState };
 
+// A position evaluator from the perspective of player `me` (higher is better).
+// Defaults to the built-in `evaluate`; the search can be parameterized with an
+// alternative so eval variants can be compared (see src/tournament.ts).
+export type EvalFn = (state: GameState, me: 0 | 1) => number;
+
 // Search the player-to-move's full turn (action sequences ending in attack or
 // endTurn) and return the sequence that MAXIMIZES `scoreTerminal`, along with
 // the resulting state.  `scoreTerminal` is what that player is trying to make
@@ -34,8 +39,8 @@ function searchTurn(state: GameState, scoreTerminal: (s: GameState) => number, d
 // The opponent's best reply to a state where MY turn just ended: the move
 // sequence, the resulting state, and `from` (the primed pre-reply state the
 // plan applies to).  When the game is already decided there is no reply.
-function bestReply(stateAfterMyTurn: GameState, me: 0 | 1): { plan: Move[]; state: GameState; from: GameState } {
-  if (Math.abs(evaluate(stateAfterMyTurn, me)) >= DECIDED) {
+function bestReply(stateAfterMyTurn: GameState, me: 0 | 1, evalFn: EvalFn = evaluate): { plan: Move[]; state: GameState; from: GameState } {
+  if (Math.abs(evalFn(stateAfterMyTurn, me)) >= DECIDED) {
     return { plan: [], state: stateAfterMyTurn, from: stateAfterMyTurn };
   }
   const opp = (me ^ 1) as 0 | 1;
@@ -44,7 +49,7 @@ function bestReply(stateAfterMyTurn: GameState, me: 0 | 1): { plan: Move[]; stat
   if (!oppP.pendingEnergy && !oppP.energyAttachedThisTurn && oppP.energyZone[0]) {
     oppP.pendingEnergy = oppP.energyZone[0];
   }
-  const r = searchTurn(stateAfterMyTurn, (s) => evaluate(s, opp), OPP_TURN_DEPTH);
+  const r = searchTurn(stateAfterMyTurn, (s) => evalFn(s, opp), OPP_TURN_DEPTH);
   return { plan: r.plan, state: r.state, from: stateAfterMyTurn };
 }
 
@@ -53,7 +58,7 @@ function bestReply(stateAfterMyTurn: GameState, me: 0 | 1): { plan: Move[]; stat
 // hanging a Pokemon to a lethal counterattack.  If my attack carries a coin-gated
 // status on the opponent's Active (50% paralyze/asleep that often denies their
 // reply), blend the two coin outcomes rather than guessing one.
-function postReplyValue(stateAfterMyTurn: GameState, me: 0 | 1): number {
+function postReplyValue(stateAfterMyTurn: GameState, me: 0 | 1, evalFn: EvalFn = evaluate): number {
   const opp = (me ^ 1) as 0 | 1;
   const gated = stateAfterMyTurn.players[opp]!.active?.pendingCoinConditions;
   if (gated && gated.length) {
@@ -63,9 +68,9 @@ function postReplyValue(stateAfterMyTurn: GameState, me: 0 | 1): number {
     const ha = heads.players[opp]!.active!;
     ha.conditions = [...new Set([...(ha.conditions ?? []), ...gated])];
     delete ha.pendingCoinConditions;
-    return 0.5 * evaluate(bestReply(heads, me).state, me) + 0.5 * evaluate(bestReply(tails, me).state, me);
+    return 0.5 * evalFn(bestReply(heads, me, evalFn).state, me) + 0.5 * evalFn(bestReply(tails, me, evalFn).state, me);
   }
-  return evaluate(bestReply(stateAfterMyTurn, me).state, me);
+  return evalFn(bestReply(stateAfterMyTurn, me, evalFn).state, me);
 }
 
 export interface Recommendation {
@@ -75,9 +80,9 @@ export interface Recommendation {
 }
 
 // Rank every legal first move by its 2-ply equity.
-export function recommend(state: GameState): Recommendation[] {
+export function recommend(state: GameState, evalFn: EvalFn = evaluate): Recommendation[] {
   const me = state.toMove;
-  const scoreMyTerminal = (s: GameState) => postReplyValue(s, me);
+  const scoreMyTerminal = (s: GameState) => postReplyValue(s, me, evalFn);
   const recs: Recommendation[] = legalMoves(state).map((move) => {
     const after = applyMove(state, move);
     if (isTerminal(move)) return { move, value: scoreMyTerminal(after), plan: [move] };

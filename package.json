@@ -7,7 +7,7 @@
   "scripts": {
     "demo": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx src/engine.test.ts && tsx src/scenarios.test.ts && tsx src/selfplay.test.ts && tsx web/dom.test.ts && tsx web/app.smoke.ts",
+    "test": "tsx src/engine.test.ts && tsx src/scenarios.test.ts && tsx src/selfplay.test.ts && tsx src/tournament.test.ts && tsx web/dom.test.ts && tsx web/app.smoke.ts",
     "web:dev": "vite",
     "web:build": "vite build",
     "build:data": "node scripts/scrape-limitless.mjs"

@@ -8,7 +8,7 @@
 import type { GameState } from './types.js';
 import { POINTS_TO_WIN } from './types.js';
 import { applyMove } from './rules.js';
-import { recommend, describeMove } from './recommend.js';
+import { recommend, describeMove, type EvalFn } from './recommend.js';
 
 export interface GameOutcome {
   winner: 0 | 1 | null; // null = no winner within maxTurns (a stall)
@@ -17,8 +17,9 @@ export interface GameOutcome {
   reason: 'points' | 'no-pokemon' | 'turn-cap';
 }
 
-export function playGame(initial: GameState, opts: { maxTurns?: number; verbose?: boolean } = {}): GameOutcome {
+export function playGame(initial: GameState, opts: { maxTurns?: number; evals?: [EvalFn, EvalFn] } = {}): GameOutcome {
   const maxTurns = opts.maxTurns ?? 60;
+  const evals = opts.evals;
   let state = structuredClone(initial);
   const log: string[] = [];
   const energyTick: [number, number] = [0, 0];
@@ -36,7 +37,7 @@ export function playGame(initial: GameState, opts: { maxTurns?: number; verbose?
       energyTick[mover]++;
     }
 
-    const best = recommend(state)[0];
+    const best = recommend(state, evals?.[mover])[0];
     let s = state;
     if (best) {
       const steps: string[] = [];
