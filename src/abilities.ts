@@ -49,6 +49,40 @@ export const ABILITIES: Record<string, AbilityEffect> = {
     apply: (s, side) => { const p = s.players[side]; for (const x of [p.active, ...p.bench]) if (x) x.damage = Math.max(0, x.damage - 20); },
     usable: (s, side) => { const p = s.players[side]; return [p.active, ...p.bench].some((x) => x && x.damage > 0); },
   },
+  // Pidgeot: once per turn, switch the opponent's Active to the Bench (they pick
+  // the replacement; approximated by promoting their first benched Pokemon).
+  'Drive Off': {
+    apply: (s, side) => { const o = s.players[opp(side)]; if (o.active && o.bench.length) { const old = o.active; o.active = o.bench.shift()!; o.bench.push(old); } },
+    usable: (s, side) => { const o = s.players[opp(side)]; return !!o.active && o.bench.length > 0; },
+  },
+  // Victreebel: once per turn while Active, drag 1 of the opponent's Benched BASIC
+  // Pokemon into the Active Spot (the most-damaged, to expose it); old active benches.
+  'Fragrance Trap': {
+    apply: (s, side) => {
+      const o = s.players[opp(side)];
+      const basics = o.bench.filter((b) => b.card.stage === 'Basic');
+      if (!o.active || !basics.length) return;
+      basics.sort((a, b) => b.damage - a.damage);
+      const pick = basics[0]!;
+      o.bench.splice(o.bench.indexOf(pick), 1);
+      o.bench.push(o.active);
+      o.active = pick;
+    },
+    usable: (s, side) => { const o = s.players[opp(side)]; return !!o.active && o.bench.some((b) => b.card.stage === 'Basic'); },
+    requiresActive: true,
+  },
+  // Wigglytuff: once per turn, heal 20 from your Active.
+  'Comforting Song': {
+    apply: (s, side) => { const a = s.players[side].active; if (a) a.damage = Math.max(0, a.damage - 20); },
+    usable: (s, side) => { const a = s.players[side].active; return !!a && a.damage > 0; },
+  },
+  // Hypno: once per turn, flip a coin -> 50% the opponent's Active falls Asleep.
+  // Modeled like a coin-gated attack rider (a transient marker) so the 2-ply reply
+  // blends over the coin rather than committing to one outcome.
+  'Sleep Pendulum': {
+    apply: (s, side) => { const o = s.players[opp(side)].active; if (o) o.pendingCoinConditions = [...new Set<Condition>([...(o.pendingCoinConditions ?? []), 'asleep'])]; },
+    usable: (s, side) => { const o = s.players[opp(side)].active; return !!o && !(o.conditions ?? []).includes('asleep'); },
+  },
   // Weezing: once per turn while Active, poison the opponent's Active.
   'Gas Leak': {
     apply: (s, side) => {

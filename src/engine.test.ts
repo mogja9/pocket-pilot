@@ -402,6 +402,40 @@ test('ability: Greninja Water Shuriken snipes 20 and can finish a benched ex', (
   assert.ok(!legalMoves(after).some((m) => m.type === 'useAbility'), 'and it cannot be used again this turn');
 });
 
+test('ability: Pidgeot Drive Off switches out the opponent active', () => {
+  const state: GameState = {
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Pidgeot'), bench: [], hand: [], deckCount: 0, discardCount: 0, points: 0,
+        energyZone: [], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning']), bench: [ip('Snorlax')], hand: [], deckCount: 0,
+        discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const ab = legalMoves(state).find((m) => m.type === 'useAbility');
+  assert.ok(ab, 'Drive Off is offered');
+  const after = applyMove(state, ab!);
+  assert.equal(after.players[1]!.active!.card.name, 'Snorlax', 'the opponent active was switched to the bench');
+  assert.ok(after.players[1]!.bench.some((b) => b.card.name === 'Pikachu ex'), 'the old active is now benched');
+});
+
+test('ability: Victreebel Fragrance Trap drags up a benched basic', () => {
+  const state: GameState = {
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Victreebel'), bench: [], hand: [], deckCount: 0, discardCount: 0, points: 0,
+        energyZone: [], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Snorlax', ['Water']), bench: [ip('Pikachu ex')], hand: [], deckCount: 0,
+        discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const ab = legalMoves(state).find((m) => m.type === 'useAbility');
+  assert.ok(ab, 'Fragrance Trap is offered (active Victreebel, opponent has a benched basic)');
+  const after = applyMove(state, ab!);
+  assert.equal(after.players[1]!.active!.card.name, 'Pikachu ex', 'the benched basic was dragged to active');
+  assert.ok(after.players[1]!.bench.some((b) => b.card.name === 'Snorlax'), 'the old active was benched');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
