@@ -5,6 +5,7 @@ import { applyMove } from '../src/rules.js';
 import type { GameState, InPlay, PlayerState, ConcreteEnergy, EnergyType, Condition } from '../src/types.js';
 import { el, clear } from './dom.js';
 import { cardImageUrl } from './images.js';
+import { cardDetailEl } from './card-view.js';
 
 const { findCard, hasCard, findAnyCard, ALL_POKEMON } = buildIndex(rawCards as RawCard[]);
 
@@ -144,6 +145,7 @@ function renderEditor(): void {
     el('div', { class: 'erow' }, energyView, ...eBtns, clr),
     el('div', { class: 'erow' }, el('span', { class: 'muted' }, 'dmg'), dmg, ...cBtns),
   );
+  if (hasCard(s.name)) editorEl.append(cardDetailEl(findCard(s.name)));
 }
 
 // ---- search panel -----------------------------------------------------------

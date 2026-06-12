@@ -26,4 +26,22 @@ t('el() append escapes text (no HTML injection)', () => {
   assert.equal(span.children.length, 0);
   assert.ok(span.textContent?.includes('<img'));
 });
+
+const { cardDetailEl } = await import('./card-view.js');
+const { findCard } = await import('../src/data.js');
+t('cardDetailEl renders attacks with real effect text', () => {
+  const node = cardDetailEl(findCard('Charizard ex'));
+  const txt = node.textContent ?? '';
+  assert.ok(txt.includes('Crimson Storm'), 'attack name shown');
+  assert.ok(txt.includes('Discard 2 [R] Energy'), 'attack effect text shown');
+  assert.ok(txt.includes('180 HP'), 'meta line shown');
+  // effect text is a text node, never parsed as markup
+  assert.equal(node.querySelectorAll('img').length, 0);
+});
+t('cardDetailEl renders an ability with its text', () => {
+  const node = cardDetailEl(findCard('Greninja'));
+  const txt = node.textContent ?? '';
+  assert.ok(txt.includes('Ability: Water Shuriken'), 'ability name shown');
+  assert.ok(txt.includes('20 damage'), 'ability text shown');
+});
 console.log(`\n${passed} passed`);
