@@ -6,14 +6,29 @@
     <title>Pocket Pilot</title>
     <style>
       :root { color-scheme: dark; }
-      body { font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 2rem auto; max-width: 720px; padding: 0 1rem; background: #14161a; color: #e6e6e6; }
+      body { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 1.5rem auto; max-width: 820px; padding: 0 1rem; background: #14161a; color: #e6e6e6; }
       h1 { font-size: 1.3rem; }
       .muted { color: #8a93a0; }
-      .card { background: #1d2027; border: 1px solid #2c313b; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+      .card { background: #1d2027; border: 1px solid #2c313b; border-radius: 8px; padding: 0.85rem; margin: 0.85rem 0; }
       ol { padding-left: 1.4rem; }
       li { margin: 0.25rem 0; }
       .eq { color: #6fcf97; }
       .step { color: #7aa2f7; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+      .slot { border: 1px solid #2c313b; border-radius: 6px; padding: 0.5rem; }
+      .slot label { display: block; color: #8a93a0; font-size: 12px; margin-bottom: 3px; }
+      .name { width: 100%; box-sizing: border-box; background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 4px 6px; }
+      .erow { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+      .energy { min-width: 70px; color: #d7b86a; }
+      .eb { background: #262b34; color: #cfd6e0; border: 1px solid #353b46; border-radius: 4px; width: 22px; height: 22px; cursor: pointer; padding: 0; }
+      .eb:hover { background: #2f3640; }
+      .eb.clr { color: #e06c75; }
+      .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+      .controls label { color: #8a93a0; }
+      .pts { width: 42px; background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 3px; }
+      select { background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 3px; }
+      button.primary { background: #2d5fd0; color: #fff; border: none; border-radius: 5px; padding: 5px 12px; cursor: pointer; }
+      button { background: #262b34; color: #cfd6e0; border: 1px solid #353b46; border-radius: 5px; padding: 5px 10px; cursor: pointer; }
     </style>
   </head>
   <body>
