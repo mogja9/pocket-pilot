@@ -6,7 +6,7 @@
 // Today it covers coin-flip DAMAGE riders (the largest, most regular family).
 // Status / energy / heal / draw riders are future work; unmatched text is left
 // for display only, never guessed at.
-import type { CoinFlipEffect, Condition, ConcreteEnergy, EnergyDiscard } from './types.js';
+import type { CoinFlipEffect, Condition, ConcreteEnergy, EnergyDiscard, SplashDamage } from './types.js';
 
 export interface CoinRider extends CoinFlipEffect {
   // When true the dataset's flat damage number is really the per-heads value
@@ -111,4 +111,19 @@ export function healFromText(text: string | undefined): { amount: number; scope:
   const team = /(?:^|\.\s+)Heal (\d+) damage from each of your Pok[eé]mon\./.exec(text);
   if (team) return { amount: Number(team[1]), scope: 'team' };
   return null;
+}
+
+// Flat damage spread onto the opponent's other Pokemon: "does N damage to 1 of
+// your opponent's [Benched] Pokemon" (snipe) or "to each of your opponent's
+// [Benched] Pokemon" (spread).  Separate from and on top of the attack's main
+// hit; bypasses weakness (applied flat).
+export function splashFromText(text: string | undefined): SplashDamage | null {
+  if (!text) return null;
+  const m = /(\d+) damage to (\d+|each) of your opponent's (Benched )?Pok[eé]mon/.exec(text);
+  if (!m) return null;
+  return {
+    amount: Number(m[1]),
+    targets: m[2] === 'each' ? 'all' : Number(m[2]),
+    benchOnly: !!m[3],
+  };
 }

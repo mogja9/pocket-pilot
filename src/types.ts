@@ -32,6 +32,15 @@ export interface EnergyDiscard {
   type?: ConcreteEnergy; // a specific colour to remove; undefined = any
 }
 
+// Flat damage an attack spreads onto the opponent's other Pokemon (snipe / bench
+// damage), separate from and on top of its main hit on the Active.  Bypasses
+// weakness in Pocket, so it is applied flat.
+export interface SplashDamage {
+  amount: number;
+  targets: number | 'all'; // how many opponent Pokemon (snipe count) or every one
+  benchOnly: boolean;       // restrict to the opponent's bench
+}
+
 export interface Attack {
   name: string;
   cost: EnergyType[];      // e.g. ['Fire','Fire','Colorless']
@@ -41,6 +50,7 @@ export interface Attack {
   inflicts?: Condition[];  // special conditions this attack puts on the defender (guaranteed)
   discards?: EnergyDiscard[]; // energy this attack discards (from self and/or the defender)
   heal?: { amount: number; scope: 'self' | 'team' }; // damage healed off your side
+  splash?: SplashDamage;   // snipe / bench / spread damage on top of the main hit
   text?: string;
 }
 

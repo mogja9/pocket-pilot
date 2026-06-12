@@ -1,5 +1,5 @@
 import type {
-  GameState, PlayerState, InPlay, Attack, ConcreteEnergy, EnergyType, EnergyDiscard,
+  GameState, PlayerState, InPlay, Attack, ConcreteEnergy, EnergyType, EnergyDiscard, SplashDamage,
 } from './types.js';
 import { BENCH_SIZE, WEAKNESS_BONUS } from './types.js';
 import { scalingFor } from './effects.js';
@@ -201,7 +201,9 @@ export function applyMove(state: GameState, move: Move): GameState {
           const targets = atk.heal.scope === 'team' ? [me.active, ...me.bench] : [me.active];
           for (const t of targets) if (t) t.damage = Math.max(0, t.damage - atk.heal.amount);
         }
-        resolveKO(next, (next.toMove ^ 1) as 0 | 1); // the defender may be KO'd
+        // Snipe / spread damage onto the opponent's other Pokemon (flat).
+        if (atk.splash) applySplash(opp, atk.splash);
+        resolveKO(next, (next.toMove ^ 1) as 0 | 1); // the defender (active or bench) may be KO'd
       }
       endTurn(next);
       break;
@@ -231,14 +233,38 @@ function discardEnergy(ip: InPlay, dsc: EnergyDiscard): void {
   }
 }
 
-// If player `ownerIdx`'s active is KO'd, award points to the other player
-// (2 for an ex) and promote a benched Pokemon.
+// Resolve every KO on player `ownerIdx`'s side (active and bench), awarding
+// points to the other player (2 for an ex).  Benched KOs are removed; an active
+// KO promotes the first remaining benched Pokemon.  A superset of an active-only
+// KO check (the bench loop is a no-op when only the active took damage).
 function resolveKO(state: GameState, ownerIdx: 0 | 1): void {
   const owner = state.players[ownerIdx];
   const other = state.players[(ownerIdx ^ 1) as 0 | 1];
+  for (let i = owner.bench.length - 1; i >= 0; i--) {
+    const b = owner.bench[i]!;
+    if (b.damage >= b.card.hp) { other.points += b.card.isEx ? 2 : 1; owner.bench.splice(i, 1); }
+  }
   if (owner.active && owner.active.damage >= owner.active.card.hp) {
     other.points += owner.active.card.isEx ? 2 : 1;
     owner.active = owner.bench.shift() ?? null;
+  }
+}
+
+// Pick a target's priority for a snipe: a KO is best (ex first), otherwise the
+// target the damage advances furthest (closest to a future KO).
+function splashTargetScore(ip: InPlay, amount: number): number {
+  const kos = ip.damage + amount >= ip.card.hp;
+  return (kos ? (ip.card.isEx ? 3000 : 2000) : 0) + Math.min(ip.card.hp, ip.damage + amount);
+}
+
+// Apply spread/snipe damage to the opponent's Pokemon (flat; bypasses weakness).
+function applySplash(opp: PlayerState, sp: SplashDamage): void {
+  const pool = (sp.benchOnly ? opp.bench : [opp.active, ...opp.bench].filter((x): x is InPlay => !!x));
+  if (sp.targets === 'all') {
+    for (const t of pool) t.damage += sp.amount;
+  } else {
+    const ranked = [...pool].sort((a, b) => splashTargetScore(b, sp.amount) - splashTargetScore(a, sp.amount));
+    for (const t of ranked.slice(0, sp.targets)) t.damage += sp.amount;
   }
 }
 

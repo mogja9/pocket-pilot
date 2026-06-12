@@ -45,6 +45,10 @@ export function riderTags(a: Attack): { cls: string; label: string }[] {
       : { cls: 'strip', label: `strip ${amt} energy` });
   }
   if (a.heal) tags.push({ cls: 'heal', label: `heal ${a.heal.amount}${a.heal.scope === 'team' ? ' (team)' : ''}` });
+  if (a.splash) {
+    const where = a.splash.benchOnly ? ' bench' : '';
+    tags.push({ cls: 'strip', label: a.splash.targets === 'all' ? `spread ${a.splash.amount}${where}` : `snipe ${a.splash.amount}${where}` });
+  }
   return tags;
 }
 

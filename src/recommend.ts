@@ -120,9 +120,12 @@ export function moveAnnotation(state: GameState, m: Move): string {
   const ptsGain = after.players[me]!.points - state.players[me]!.points;
   const defBefore = state.players[opp]!.active;
   const defAfter = after.players[opp]!.active;
-  if (ptsGain > 0 && defBefore) {
-    parts.push(`KOs ${defBefore.card.name} (+${ptsGain} pt${ptsGain > 1 ? 's' : ''})`);
-  } else if (defBefore && defAfter && defBefore.card.id === defAfter.card.id) {
+  const activeKOd = !!defBefore && (!defAfter || defAfter.card.id !== defBefore.card.id);
+  if (ptsGain > 0) {
+    const pts = `+${ptsGain} pt${ptsGain > 1 ? 's' : ''}`;
+    parts.push(activeKOd ? `KOs ${defBefore!.card.name} (${pts})` : `KOs a benched Pokemon (${pts})`);
+  }
+  if (ptsGain === 0 && defBefore && defAfter && defBefore.card.id === defAfter.card.id) {
     // The same defender survived: report what stuck to it.
     const dealt = Math.round(defAfter.damage - defBefore.damage);
     if (m.type === 'attack' && dealt > 0) parts.push(`deals ${dealt}`);

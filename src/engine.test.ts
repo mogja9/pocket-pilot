@@ -321,6 +321,28 @@ test('hand: a Potion in hand surfaces as a heal play for a damaged active', () =
   assert.match(describeMove(state, potionPlay!.move), /Potion/);
 });
 
+test('splash rider: a snipe finishes a damaged benched ex for +2', () => {
+  const waIdx = findCard('Seadra').attacks.findIndex((a) => a.name === 'Water Arrow');
+  assert.deepEqual(findCard('Seadra').attacks[waIdx]!.splash, { amount: 50, targets: 1, benchOnly: false });
+  const benchedEx = ip('Articuno ex'); // 140 HP
+  benchedEx.damage = 90;               // 90 + 50 snipe = 140 -> KO
+  const state: GameState = {
+    toMove: 0, turn: 6, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Seadra', ['Water', 'Water', 'Water']), bench: [], hand: [], deckCount: 10,
+        discardCount: 0, points: 0, energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning']), bench: [benchedEx], hand: [], deckCount: 10,
+        discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  // The snipe should prefer the KO of the benched ex over chipping the active.
+  const after = applyMove(state, { type: 'attack', attackIndex: waIdx });
+  assert.equal(after.players[0]!.points, 2, 'KOing a benched ex scores 2');
+  assert.equal(after.players[1]!.bench.length, 0, 'the benched ex was removed');
+  assert.equal(after.players[1]!.active!.card.name, 'Pikachu ex', 'the active is untouched');
+  assert.match(describeMove(state, { type: 'attack', attackIndex: waIdx }), /KOs a benched Pokemon \(\+2 pts\)/);
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
