@@ -184,6 +184,12 @@ export function applyMove(state: GameState, move: Move): GameState {
         let dmg = expectedDamage(atk, me.active, opp.active, me, opp);
         if ((me.active.conditions ?? []).includes('confused')) dmg *= 0.5; // 50% the attack fails
         opp.active.damage += dmg;
+        // Guaranteed status infliction lands on the surviving defender, where the
+        // 2-ply search then sees it (asleep/paralyzed lock the reply; poison/burn
+        // tick at the checkup; confused halves the reply).
+        if (atk.inflicts?.length) {
+          opp.active.conditions = [...new Set([...(opp.active.conditions ?? []), ...atk.inflicts])];
+        }
         resolveKO(next, (next.toMove ^ 1) as 0 | 1); // the defender may be KO'd
       }
       endTurn(next);

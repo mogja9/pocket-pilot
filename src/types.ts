@@ -30,6 +30,7 @@ export interface Attack {
   damage: number;          // base damage before weakness / coin flips
   coin?: CoinFlipEffect;   // optional coin-flip rider
   variable?: boolean;      // damage string had a + or x (conditional/scaling); base is a floor
+  inflicts?: Condition[];  // special conditions this attack puts on the defender (guaranteed)
   text?: string;
 }
 

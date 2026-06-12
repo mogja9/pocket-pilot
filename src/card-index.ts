@@ -1,5 +1,5 @@
 import type { PokemonCard, TrainerCard, Card, Attack, EnergyType, ConcreteEnergy, Stage, CoinFlipEffect } from './types.js';
-import { coinRiderFromText } from './effect-text.js';
+import { coinRiderFromText, defenderConditionsFromText } from './effect-text.js';
 
 // PURE card-data adapter (no fs, no JSON import) so it runs in both Node and the
 // browser.  `buildIndex(raw)` maps the hugoburguete dataset schema to the engine
@@ -55,12 +55,14 @@ function adaptAttack(cardName: string, a: NonNullable<RawCard['attacks']>[number
   // number is the per-heads value, so the flat base is 0.  A heads-bonus rider
   // ("N+" = "+N on heads") keeps the flat base.
   const zeroBase = override ? true : textRider?.zeroBase ?? false;
+  const inflicts = defenderConditionsFromText(a.text);
   return {
     name: a.name,
     cost: (a.cost ?? []) as EnergyType[],
     damage: zeroBase ? 0 : damage,
     variable: variable || undefined,
     ...(coin ? { coin } : {}),
+    ...(inflicts.length ? { inflicts } : {}),
     // Prefer the real effect text now that the dataset carries it; fall back to
     // a note about variable damage for the rare attack without text.
     text: a.text ?? (a.damage && /[x+]/.test(a.damage) ? `dataset damage "${a.damage}" (base is a floor)` : undefined),

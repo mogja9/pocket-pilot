@@ -6,7 +6,7 @@
 // Today it covers coin-flip DAMAGE riders (the largest, most regular family).
 // Status / energy / heal / draw riders are future work; unmatched text is left
 // for display only, never guessed at.
-import type { CoinFlipEffect } from './types.js';
+import type { CoinFlipEffect, Condition } from './types.js';
 
 export interface CoinRider extends CoinFlipEffect {
   // When true the dataset's flat damage number is really the per-heads value
@@ -49,4 +49,25 @@ export function coinRiderFromText(text: string | undefined): CoinRider | null {
     if (m) return build(m);
   }
   return null;
+}
+
+const STATUS_WORD: Record<string, Condition> = {
+  Asleep: 'asleep', Paralyzed: 'paralyzed', Poisoned: 'poisoned', Burned: 'burned', Confused: 'confused',
+};
+
+// Special conditions an attack UNCONDITIONALLY inflicts on the opponent's active.
+// The standalone sentence capitalizes "Your" ("Your opponent's Active Pokemon is
+// now Poisoned and Asleep."); coin-gated wordings use lowercase "your" after "If
+// heads," and are deliberately NOT matched here (applyMove is deterministic, so
+// we only commit to guaranteed effects).
+export function defenderConditionsFromText(text: string | undefined): Condition[] {
+  if (!text) return [];
+  const m = /(?:^|\.\s+)Your opponent's Active Pok[eé]mon is now ([A-Za-z ]+?)\./.exec(text);
+  if (!m) return [];
+  const out: Condition[] = [];
+  for (const word of m[1]!.split(/\s+and\s+/)) {
+    const cond = STATUS_WORD[word.trim()];
+    if (cond && !out.includes(cond)) out.push(cond);
+  }
+  return out;
 }

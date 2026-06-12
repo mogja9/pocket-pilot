@@ -178,6 +178,26 @@ test('condition: poison ticks 10 damage at the between-turn checkup', () => {
   assert.equal(after.players[1]!.active!.damage, 0, 'un-poisoned active unaffected');
 });
 
+test('status rider: an attack that sleeps the defender blocks their reply', () => {
+  const frosmoth = findCard('Frosmoth');
+  const psIdx = frosmoth.attacks.findIndex((a) => a.name === 'Powder Snow');
+  assert.ok(frosmoth.attacks[psIdx]!.inflicts?.includes('asleep'), 'Powder Snow inflicts asleep (from text)');
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Frosmoth', ['Water', 'Water']), bench: [], hand: [], deckCount: 10, discardCount: 0,
+        points: 0, energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning', 'Lightning']), bench: [], hand: [], deckCount: 10, discardCount: 0,
+        points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const after = applyMove(state, { type: 'attack', attackIndex: psIdx });
+  assert.equal(after.toMove, 1, 'now the opponent to move');
+  assert.ok((after.players[1]!.active!.conditions ?? []).includes('asleep'), 'defender was put to sleep');
+  assert.equal(after.players[1]!.active!.damage, 40, 'and still took Powder Snow damage');
+  assert.ok(!legalMoves(after).some((m) => m.type === 'attack'), 'asleep defender cannot attack back');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
