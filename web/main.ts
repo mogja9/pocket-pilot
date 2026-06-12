@@ -7,6 +7,7 @@ import { el, clear } from './dom.js';
 import { cardImageUrl } from './images.js';
 import { cardDetailEl } from './card-view.js';
 import { slotTargetFromPoint } from './dnd.js';
+import { encodeBoard, decodeBoard } from './share.js';
 import { TRAINERS } from '../src/trainers.js';
 
 const { findCard, hasCard, findAnyCard, ALL_POKEMON, ALL_CARDS } = buildIndex(rawCards as RawCard[]);
@@ -63,6 +64,19 @@ function buildState(): GameState {
 // ---- persistence ------------------------------------------------------------
 function save(): void { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(board)); } catch { /* ignore */ } }
 function load(): void {
+  // A shared position in the URL hash takes precedence over localStorage, but is
+  // consumed once: persist it as the working board and drop the hash, so later
+  // edits + reloads use localStorage rather than the stale shared snapshot.
+  const hash = (location.hash || '').replace(/^#/, '');
+  if (hash) {
+    const shared = decodeBoard(hash);
+    if (shared) {
+      Object.assign(board, shared);
+      save();
+      try { history.replaceState(null, '', location.pathname + location.search); } catch { location.hash = ''; }
+      return;
+    }
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
@@ -291,6 +305,7 @@ function clearBoard(): void {
   board.mine = [null, null, null, null]; board.opp = [null, null, null, null]; board.hand = []; board.pending = ''; board.myPts = 0; board.oppPts = 0; board.oppZone = [];
   selected = null; pendingSel.value = ''; myPtsEl.value = '0'; oppPtsEl.value = '0';
   try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { location.hash = ''; }
   changed();
 }
 
@@ -318,6 +333,17 @@ function renderOppZone(): void {
   }
 }
 
+// Share the current position as a link (URL hash).
+const copyBtn = el('button', { type: 'button', title: 'copy a shareable link to this position' }, 'Copy link') as HTMLButtonElement;
+copyBtn.addEventListener('click', () => {
+  const hash = encodeBoard(board);
+  location.hash = hash;
+  const url = `${location.origin}${location.pathname}#${hash}`;
+  const flash = (label: string) => { copyBtn.textContent = label; setTimeout(() => { copyBtn.textContent = 'Copy link'; }, 1200); };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(() => flash('Copied'), () => flash('Copy failed'));
+  else flash('Link in URL');
+});
+
 searchInput.addEventListener('input', () => renderSearch(searchInput.value));
 
 const app = document.getElementById('app')!;
@@ -330,6 +356,7 @@ app.append(
       el('label', { class: 'muted' }, 'you ', myPtsEl), el('label', { class: 'muted' }, 'opp ', oppPtsEl),
       el('button', { type: 'button', onClick: loadExample }, 'Example'),
       el('button', { type: 'button', onClick: clearBoard }, 'Clear'),
+      copyBtn,
       oppZoneEl,
     ),
     editorEl,

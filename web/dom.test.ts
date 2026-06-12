@@ -60,4 +60,29 @@ t('slotTargetFromEl resolves the slot under a touch point', () => {
   assert.equal(slotTargetFromEl(el('div', {})), null, 'a non-slot element resolves to null');
   slot.remove();
 });
+const { encodeBoard, decodeBoard } = await import('./share.js');
+t('share: encodeBoard/decodeBoard round-trips a board', () => {
+  const board = {
+    mine: [{ name: 'Charizard ex', energy: ['Fire', 'Fire'], damage: 60, conditions: ['poisoned'] }, null, null, null],
+    opp: [{ name: 'Pikachu ex', energy: ['Lightning'], damage: 0, conditions: [] }, null, null, null],
+    hand: ['Giovanni'], pending: 'Fire', myPts: 1, oppPts: 2, oppZone: ['Lightning'],
+  };
+  const round = decodeBoard(encodeBoard(board));
+  assert.deepEqual(round, board, 'round-trip preserves the board');
+});
+t('share: decodeBoard sanitizes and rejects bad input', () => {
+  assert.equal(decodeBoard('not-base64-$$$'), null, 'malformed string -> null');
+  assert.equal(decodeBoard(''), null, 'empty -> null');
+  // Oversized arrays clamp, bad energy/conditions/points are filtered.
+  const dirty = encodeBoard({
+    mine: [null, null, null, null, { name: 'X', energy: ['Bogus'], damage: -5, conditions: ['hexed'] }] as never,
+    opp: [], hand: [], pending: 'Nonsense', myPts: 9, oppPts: -1, oppZone: ['Water', 'Bad'],
+  } as never);
+  const d = decodeBoard(dirty)!;
+  assert.equal(d.mine.length, 4, 'mine clamped to 4 slots');
+  assert.equal(d.pending, '', 'invalid pending energy dropped');
+  assert.equal(d.myPts, 3, 'points clamped to 3');
+  assert.equal(d.oppPts, 0, 'negative points clamped to 0');
+  assert.deepEqual(d.oppZone, ['Water'], 'invalid energy filtered from oppZone');
+});
 console.log(`\n${passed} passed`);

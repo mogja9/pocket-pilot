@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 
 const dom = new JSDOM('<!doctype html><body><div id="app">loading engine...</div></body>', { url: 'http://localhost/' });
-const g = globalThis as unknown as { document: Document; localStorage: Storage };
+const g = globalThis as unknown as { document: Document; localStorage: Storage; location: Location; history: History };
 g.document = dom.window.document as unknown as Document;
 g.localStorage = dom.window.localStorage as unknown as Storage;
+g.location = dom.window.location as unknown as Location;
+g.history = dom.window.history as unknown as History;
 
 await import('./main.js'); // entry runs on import
 
