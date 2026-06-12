@@ -21,15 +21,17 @@ the recommendations.
 
 Working:
 
-- **Real card data** (`src/data.ts`, `data/ptcgp-cards.json`): all 2759 cards
-  (2520 Pokemon + 239 trainers) vendored from
-  `hugoburguete/pokemon-tcg-pocket-card-database`, mapped to the engine model.
-  That dataset has no attack effect text, so conditional ("40+") and scaling
-  ("30x") damage is parsed as a base floor + a `variable` flag, and a small
-  hand-curated `COIN_OVERRIDES` table restores real coin-flip riders (e.g.
-  Marowak ex Bonemerang) so the probability modeling stays intact. The vendored
-  JSON is trimmed to only the fields the engine reads (halves the web bundle to
-  ~66 KB gzipped); regenerate it from source with `npm run build:data`.
+- **Real card data** (`src/data.ts`, `data/ptcgp-cards.json`): the complete
+  pool of 3406 cards (3129 Pokemon + 277 trainers) across all 20 sets including
+  every promo, scraped from `pocket.limitlesstcg.com` (the de-facto competitive
+  database; same org whose CDN serves the card art, so ids line up 1:1). Unlike
+  the older hugoburguete source this carries real **attack and ability effect
+  text**, so the model can grow beyond raw damage. Scaling ("30x") and
+  conditional ("40+") damage is still parsed as a base floor + a `variable`
+  flag, and a small hand-curated `COIN_OVERRIDES` table restores structured
+  coin-flip riders (e.g. Marowak ex Bonemerang) the text can't express. The
+  JSON is trimmed to the fields the engine reads (web bundle ~120 KB gzipped);
+  regenerate it with `npm run build:data` (runs `scripts/scrape-limitless.mjs`).
 
 - Domain model (`src/types.ts`): energy, cards, in-play Pokemon, both players.
 - Rules (`src/rules.ts`): legal-move generation (attach energy, play/evolve,
@@ -64,8 +66,10 @@ The demo shows the engine discovering that "attach Fire, then Crimson Storm"
 
 ## Roadmap (next loop iterations)
 
-1. Done: real card dataset integrated (see Status). Next data step: enrich
-   attack effect text (the `+`/`x` riders and abilities) from a fuller source.
+1. Done: complete card dataset with attack + ability effect text integrated
+   from Limitless (see Status). Next data step: parse that effect text into
+   structured riders the damage model can use (extra-damage-per-heads, energy
+   discard, heal, draw, status) instead of just displaying it.
 2. Done: 2-ply opponent-reply modeling (see Status). Next: special conditions
    (sleep/paralysis/poison) and ability/trainer effects.
 3. Board-dependent attacks (e.g. Pikachu ex scaling per benched Lightning).

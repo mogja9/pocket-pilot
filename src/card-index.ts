@@ -9,7 +9,9 @@ export interface RawCard {
   id: string; name: string; element?: string; type?: string; subtype?: string;
   health?: number | null; retreatCost?: number | null; weakness?: string | null;
   evolvesFrom?: string | null;
-  attacks?: { name: string; damage?: string; cost?: string[] }[];
+  attacks?: { name: string; damage?: string; cost?: string[]; text?: string }[];
+  ability?: { name: string; text: string };
+  text?: string; // trainer effect text
 }
 
 // Hand-curated coin-flip riders for attacks whose real effect the dataset can't
@@ -42,14 +44,16 @@ function adaptAttack(cardName: string, a: NonNullable<RawCard['attacks']>[number
     damage: coin ? 0 : damage, // a coin rider replaces the base "Nx" number
     variable: variable || undefined,
     ...(coin ? { coin } : {}),
-    text: a.damage && /[x+]/.test(a.damage) ? `dataset damage "${a.damage}" (base is a floor)` : undefined,
+    // Prefer the real effect text now that the dataset carries it; fall back to
+    // a note about variable damage for the rare attack without text.
+    text: a.text ?? (a.damage && /[x+]/.test(a.damage) ? `dataset damage "${a.damage}" (base is a floor)` : undefined),
   };
 }
 
 export function adapt(r: RawCard): Card {
   if ((r.type ?? '').toLowerCase() !== 'pokemon') {
     const kind = r.subtype === 'Supporter' ? 'Supporter' : 'Item';
-    const t: TrainerCard = { id: r.id, name: r.name, kind };
+    const t: TrainerCard = { id: r.id, name: r.name, kind, ...(r.text ? { text: r.text } : {}) };
     return t;
   }
   const weak = r.weakness && CONCRETE.has(r.weakness) ? (r.weakness as ConcreteEnergy) : undefined;
@@ -65,6 +69,7 @@ export function adapt(r: RawCard): Card {
     ...(weak ? { weakness: weak } : {}),
     ...(r.evolvesFrom ? { evolvesFrom: r.evolvesFrom } : {}),
     attacks: (r.attacks ?? []).map((a) => adaptAttack(r.name, a)),
+    ...(r.ability ? { ability: r.ability } : {}),
   };
   return p;
 }

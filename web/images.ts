@@ -3,7 +3,9 @@
 // the card name, so an occasional missing/renamed image degrades gracefully.
 
 export function cardImageUrl(id: string): string | null {
-  const m = /^([a-z0-9]+)-(\d+)$/i.exec(id);
+  // Set code is everything before the final "-<number>"; promos keep an inner
+  // dash ("p-a-001" -> set "P-A", num "001").
+  const m = /^(.+)-(\d+)$/.exec(id);
   if (!m) return null;
   const set = m[1]!.toUpperCase();
   const num = m[2]!.padStart(3, '0');

@@ -10,7 +10,7 @@
     "test": "tsx src/engine.test.ts && tsx web/dom.test.ts && tsx web/app.smoke.ts",
     "web:dev": "vite",
     "web:build": "vite build",
-    "build:data": "node scripts/build-data.mjs"
+    "build:data": "node scripts/scrape-limitless.mjs"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.3",

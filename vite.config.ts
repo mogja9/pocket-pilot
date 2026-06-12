@@ -4,8 +4,9 @@ import { defineConfig } from 'vite';
 // from ../data, so allow serving files from the project root.
 export default defineConfig({
   root: 'web',
-  // The card dataset (~600 KB raw, ~66 KB gzipped) is bundled by design; it is
-  // not splittable into smaller meaningful chunks, so lift the size warning.
-  build: { outDir: '../dist-web', emptyOutDir: true, chunkSizeWarningLimit: 800 },
+  // The card dataset (~1 MB raw / ~120 KB gzipped, now with attack + ability
+  // effect text) is bundled by design; it is not splittable into smaller
+  // meaningful chunks, so lift the size warning.
+  build: { outDir: '../dist-web', emptyOutDir: true, chunkSizeWarningLimit: 1200 },
   server: { fs: { allow: ['..'] } },
 });

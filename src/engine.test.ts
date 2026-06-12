@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { GameState, InPlay, ConcreteEnergy, PlayerState } from './types.js';
-import { findCard, findAnyCard, ALL_POKEMON } from './data.js';
+import { findCard, findAnyCard, ALL_POKEMON, ALL_CARDS } from './data.js';
 import { canPayCost, expectedDamage, legalMoves, applyMove } from './rules.js';
 import { recommend } from './recommend.js';
 
@@ -23,6 +23,20 @@ test('dataset loads a real card pool', () => {
   assert.equal(zard.hp, 180);
   assert.equal(zard.isEx, true);
   assert.ok(zard.attacks.some((a) => a.name === 'Crimson Storm' && a.damage === 200));
+});
+
+test('dataset is the complete Limitless pool with effect text', () => {
+  // All 20 sets incl. promos = 3406 cards (the live count on the database).
+  assert.equal(ALL_CARDS.length, 3406, `expected 3406 cards, got ${ALL_CARDS.length}`);
+  // The upgrade over the old source: real attack + ability effect text.
+  const crimson = findCard('Charizard ex').attacks.find((a) => a.name === 'Crimson Storm')!;
+  assert.match(crimson.text ?? '', /Discard 2 \[R\] Energy/, 'attack effect text is carried');
+  const greninja = findCard('Greninja');
+  assert.equal(greninja.ability?.name, 'Water Shuriken');
+  assert.match(greninja.ability?.text ?? '', /20 damage/, 'ability effect text is carried');
+  // Promos resolve too (p-a / p-b ids).
+  assert.ok(findAnyCard('Potion'), 'promo trainer Potion is in the pool');
+  assert.ok(ALL_CARDS.length > 0 && ALL_CARDS.some((c) => c.id.startsWith('p-b-')), 'P-B promos present');
 });
 
 test('canPayCost: Colorless is a wildcard', () => {

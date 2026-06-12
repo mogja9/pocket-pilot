@@ -42,6 +42,7 @@ export interface PokemonCard {
   retreatCost: number;     // number of any energy to retreat
   weakness?: ConcreteEnergy; // +20 damage from this type in Pocket
   attacks: Attack[];
+  ability?: { name: string; text: string }; // passive/activated ability (text only for now)
 }
 
 // A minimal trainer model; effects are resolved by id in rules.ts.
