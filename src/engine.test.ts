@@ -68,6 +68,13 @@ test('coin riders: derived from attack effect text (no hand-coding)', () => {
   assert.deepEqual(stomp.coin, { flips: 1, damagePerHeads: 30 });
   assert.equal(stomp.damage, 30, 'heads-bonus rider keeps the flat base');
   assert.equal(expectedDamage(stomp, exeggutor, grassDefender), 45);
+  // "Flip a coin. If tails, this attack does nothing." -> base lands 50%.
+  const moltres = findCard('Moltres');
+  const sky = moltres.attacks.find((a) => a.name === 'Sky Attack')!;
+  assert.equal(sky.coin?.successProbability, 0.5);
+  assert.equal(sky.damage, 130, 'success-probability rider keeps the flat base');
+  // Snorlax (Colorless) is not weak to Fire -> clean 130 x 0.5 = 65.
+  assert.equal(expectedDamage(sky, ip('Moltres'), ip('Snorlax')), 65);
 });
 
 test('recommend: finds the attach-then-Crimson-Storm KO of an ex', () => {
@@ -91,21 +98,23 @@ test('recommend: finds the attach-then-Crimson-Storm KO of an ex', () => {
 });
 
 test('2-ply: retreats a threatened ex instead of hanging it to a lethal reply', () => {
-  // My Pikachu ex (120 HP) is active and CAN attack, but the opponent's Moltres
-  // can Sky Attack for 130 next turn -> a 2-point KO.  Snorlax (150 HP) survives
-  // 130.  A 1-ply engine attacks (deals damage now); a 2-ply engine must retreat.
-  const moltres = findCard('Moltres');
-  const lethal = moltres.attacks.find((a) => a.damage >= 120);
-  assert.ok(lethal, 'test setup: expected a Moltres with a >=120 flat attack');
+  // My Pikachu ex (120 HP) is active and CAN attack, but the opponent's Abomasnow
+  // can Frost Breath for a flat 120 next turn -> a 2-point KO.  Snorlax (150 HP)
+  // survives 120.  A 1-ply engine attacks (deals damage now); a 2-ply engine must
+  // retreat.  (A genuinely flat attacker, not a coin-flip one, so the threat is
+  // unconditional.)
+  const abomasnow = findCard('Abomasnow');
+  const lethal = abomasnow.attacks.find((a) => a.damage >= 120 && !a.coin);
+  assert.ok(lethal, 'test setup: expected an Abomasnow with a flat >=120 attack');
   const state: GameState = {
     toMove: 0, turn: 8, isFirstPlayerFirstTurn: false,
     players: [
       { name: 'You', active: ip('Pikachu ex', ['Lightning', 'Lightning']),
         bench: [ip('Snorlax')], hand: [], deckCount: 15, discardCount: 0, points: 0,
         energyZone: ['Lightning'], pendingEnergy: 'Lightning', energyAttachedThisTurn: false },
-      { name: 'Opp', active: ip('Moltres', ['Fire', 'Fire', 'Fire']),
+      { name: 'Opp', active: ip('Abomasnow', ['Water', 'Water', 'Water', 'Water']),
         bench: [ip('Articuno ex')], hand: [], deckCount: 15, discardCount: 0, points: 0,
-        energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+        energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
     ],
   };
   const recs = recommend(state);

@@ -45,7 +45,11 @@ function adaptAttack(cardName: string, a: NonNullable<RawCard['attacks']>[number
   const coin: CoinFlipEffect | undefined = override
     ? override
     : textRider
-      ? { flips: textRider.flips, damagePerHeads: textRider.damagePerHeads }
+      ? {
+          flips: textRider.flips,
+          damagePerHeads: textRider.damagePerHeads,
+          ...(textRider.successProbability != null ? { successProbability: textRider.successProbability } : {}),
+        }
       : undefined;
   // A per-heads rider ("Nx" = "N damage for each heads") means the dataset's
   // number is the per-heads value, so the flat base is 0.  A heads-bonus rider

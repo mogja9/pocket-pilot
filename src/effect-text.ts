@@ -37,6 +37,9 @@ const PATTERNS: { re: RegExp; build: (m: RegExpMatchArray) => CoinRider }[] = [
   // "Flip a coin. If heads, this attack does D more damage."  (base kept, +D on heads)
   { re: /Flip a coin\. If heads, this attack does (\d+) more damage/,
     build: (m) => ({ flips: 1, damagePerHeads: Number(m[1]), zeroBase: false }) },
+  // "Flip a coin. If tails, this attack does nothing."  (base lands only on heads)
+  { re: /Flip a coin\. If tails, this attack does nothing\./,
+    build: () => ({ flips: 0, damagePerHeads: 0, zeroBase: false, successProbability: 0.5 }) },
 ];
 
 export function coinRiderFromText(text: string | undefined): CoinRider | null {

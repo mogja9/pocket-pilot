@@ -52,8 +52,10 @@ export function expectedDamage(
   }
   // Giovanni-style flat boost applies to damaging attacks only.
   if (me && (base > 0 || attack.coin)) base += me.attackBonus ?? 0;
+  // "If tails, this attack does nothing" lands the base only some of the time.
+  const successProbability = attack.coin?.successProbability ?? 1;
   const coinEV = attack.coin ? attack.coin.flips * 0.5 * attack.coin.damagePerHeads : 0;
-  let dmg = base + coinEV;
+  let dmg = base * successProbability + coinEV;
   if (dmg > 0 && defender.card.weakness && attacker.card.type === defender.card.weakness) {
     dmg += WEAKNESS_BONUS;
   }

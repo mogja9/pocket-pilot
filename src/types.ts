@@ -19,6 +19,9 @@ export interface CoinFlipEffect {
   // Extra damage applied per heads (e.g. "flip 2 coins, +30 per heads").
   flips: number;
   damagePerHeads: number;
+  // Probability the attack's base damage lands at all (e.g. "if tails, this
+  // attack does nothing" -> 0.5).  Undefined means the base always lands.
+  successProbability?: number;
 }
 
 export interface Attack {
