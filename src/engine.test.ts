@@ -220,6 +220,25 @@ test('energy-discard rider: stripping the defender can deny their reply', () => 
   assert.ok(!legalMoves(after).some((m) => m.type === 'attack'), 'so the defender has no attack on its reply');
 });
 
+test('heal rider: a drain attack heals the attacker', () => {
+  const vaporeon = findCard('Vaporeon');
+  const bdIdx = vaporeon.attacks.findIndex((a) => a.name === 'Bubble Drain');
+  assert.deepEqual(vaporeon.attacks[bdIdx]!.heal, { amount: 30, scope: 'self' });
+  const active = ip('Vaporeon', ['Water', 'Water', 'Water']);
+  active.damage = 50;
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active, bench: [], hand: [], deckCount: 10, discardCount: 0, points: 0,
+        energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning', 'Lightning']), bench: [], hand: [], deckCount: 10,
+        discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const after = applyMove(state, { type: 'attack', attackIndex: bdIdx });
+  assert.equal(after.players[0]!.active!.damage, 20, 'Bubble Drain healed 30 off the attacker (50 -> 20)');
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');

@@ -40,6 +40,7 @@ export interface Attack {
   variable?: boolean;      // damage string had a + or x (conditional/scaling); base is a floor
   inflicts?: Condition[];  // special conditions this attack puts on the defender (guaranteed)
   discards?: EnergyDiscard[]; // energy this attack discards (from self and/or the defender)
+  heal?: { amount: number; scope: 'self' | 'team' }; // damage healed off your side
   text?: string;
 }
 

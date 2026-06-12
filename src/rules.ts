@@ -196,6 +196,11 @@ export function applyMove(state: GameState, move: Move): GameState {
           const tgt = dsc.target === 'self' ? me.active : opp.active;
           if (tgt) discardEnergy(tgt, dsc);
         }
+        // Self-heal (drain) keeps the attacker healthier for the opponent's reply.
+        if (atk.heal) {
+          const targets = atk.heal.scope === 'team' ? [me.active, ...me.bench] : [me.active];
+          for (const t of targets) if (t) t.damage = Math.max(0, t.damage - atk.heal.amount);
+        }
         resolveKO(next, (next.toMove ^ 1) as 0 | 1); // the defender may be KO'd
       }
       endTurn(next);

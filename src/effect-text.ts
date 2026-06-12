@@ -99,3 +99,16 @@ export function energyDiscardsFromText(text: string | undefined): EnergyDiscard[
   }
   return out;
 }
+
+// Damage an attack GUARANTEES it heals off your own side: "this Pokemon" (the
+// attacker) or "each of your Pokemon" (the whole board).  Capital "Heal" only,
+// so coin-gated heals stay unmodeled.  Player-choice heals ("N of your Pokemon")
+// are left out -- we can't know the target.
+export function healFromText(text: string | undefined): { amount: number; scope: 'self' | 'team' } | null {
+  if (!text) return null;
+  const self = /(?:^|\.\s+)Heal (\d+) damage from this Pok[eé]mon\./.exec(text);
+  if (self) return { amount: Number(self[1]), scope: 'self' };
+  const team = /(?:^|\.\s+)Heal (\d+) damage from each of your Pok[eé]mon\./.exec(text);
+  if (team) return { amount: Number(team[1]), scope: 'team' };
+  return null;
+}
