@@ -6,32 +6,56 @@
     <title>Pocket Pilot</title>
     <style>
       :root { color-scheme: dark; }
-      body { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 1.5rem auto; max-width: 820px; padding: 0 1rem; background: #14161a; color: #e6e6e6; }
-      h1 { font-size: 1.3rem; }
+      * { box-sizing: border-box; }
+      body { font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; padding: 12px; background: #0f1115; color: #e6e6e6; }
+      h1 { font-size: 1.1rem; margin: 0 0 8px; }
       .muted { color: #8a93a0; }
-      .card { background: #1d2027; border: 1px solid #2c313b; border-radius: 8px; padding: 0.85rem; margin: 0.85rem 0; }
-      ol { padding-left: 1.4rem; }
-      li { margin: 0.25rem 0; }
-      .eq { color: #6fcf97; }
-      .step { color: #7aa2f7; }
-      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-      .slot { border: 1px solid #2c313b; border-radius: 6px; padding: 0.5rem; }
-      .slot label { display: block; color: #8a93a0; font-size: 12px; margin-bottom: 3px; }
-      .name { width: 100%; box-sizing: border-box; background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 4px 6px; }
-      .erow { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
-      .energy { min-width: 70px; color: #d7b86a; }
-      .eb { background: #262b34; color: #cfd6e0; border: 1px solid #353b46; border-radius: 4px; width: 22px; height: 22px; cursor: pointer; padding: 0; }
-      .eb:hover { background: #2f3640; }
-      .eb.clr { color: #e06c75; }
-      .cb { background: #262b34; color: #9aa3b0; border: 1px solid #353b46; border-radius: 4px; padding: 2px 5px; font-size: 11px; cursor: pointer; }
-      .cb.on { background: #5a3a3a; color: #ffb4b4; border-color: #7a4a4a; }
-      .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
-      .controls label { color: #8a93a0; }
-      .pts { width: 42px; background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 3px; }
-      .hand-input { width: 150px; background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 4px 6px; }
-      select { background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 3px; }
-      button.primary { background: #2d5fd0; color: #fff; border: none; border-radius: 5px; padding: 5px 12px; cursor: pointer; }
-      button { background: #262b34; color: #cfd6e0; border: 1px solid #353b46; border-radius: 5px; padding: 5px 10px; cursor: pointer; }
+      .card { background: #1a1d24; border: 1px solid #2a2f3a; border-radius: 8px; padding: 10px; margin: 8px 0; }
+      button { background: #262b34; color: #cfd6e0; border: 1px solid #353b46; border-radius: 5px; padding: 4px 9px; cursor: pointer; font: inherit; }
+      button:hover { background: #2f3640; }
+      select, input { background: #0f1115; color: #e6e6e6; border: 1px solid #353b46; border-radius: 4px; padding: 3px 5px; font: inherit; }
+
+      .appgrid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(280px, 1fr); gap: 12px; max-width: 1100px; margin: 0 auto; }
+      @media (max-width: 760px) { .appgrid { grid-template-columns: 1fr; } }
+
+      /* battle board */
+      .board { background: radial-gradient(circle at 50% 50%, #1d2430, #14171d); border: 1px solid #2a2f3a; border-radius: 12px; padding: 12px; }
+      .side { display: flex; flex-direction: column; gap: 8px; }
+      .side.opp { margin-bottom: 6px; }
+      .benchrow { display: flex; gap: 8px; justify-content: center; }
+      .activerow { display: flex; gap: 8px; align-items: center; justify-content: center; }
+      .tag { color: #8a93a0; font-size: 11px; min-width: 70px; text-align: right; }
+      .activerow .slot { width: 86px; height: 120px; }
+
+      .slot { position: relative; width: 70px; height: 98px; border: 1px dashed #3a4150; border-radius: 7px; background: #0f1318; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+      .slot.filled { border-style: solid; }
+      .slot.sel { outline: 2px solid #2d5fd0; }
+      .slot.drop { border-color: #6fcf97; background: #16241b; }
+      .slot .ph { color: #555c68; font-size: 10px; text-align: center; padding: 2px; }
+      .cardimg, .thumb { width: 100%; height: 100%; object-fit: contain; }
+      .noimg { font-size: 10px; text-align: center; padding: 4px; color: #cfd6e0; }
+      .badges { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; background: rgba(0,0,0,0.55); }
+      .badges .b { font-size: 9px; border-radius: 3px; padding: 0 3px; }
+      .badges .en { color: #d7b86a; } .badges .dmg { color: #e06c75; } .badges .cond { color: #c08be0; }
+
+      /* editor */
+      .editor .erow { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+      .energy { min-width: 60px; color: #d7b86a; }
+      .eb { width: 22px; height: 22px; padding: 0; } .eb.clr { color: #e06c75; }
+      .cb { padding: 2px 5px; font-size: 11px; color: #9aa3b0; } .cb.on { background: #5a3a3a; color: #ffb4b4; border-color: #7a4a4a; }
+      .pts { width: 44px; } .rm { margin-left: auto; color: #e06c75; }
+      .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+      /* search */
+      .search { width: 100%; margin-bottom: 8px; }
+      .searchgrid { display: flex; flex-wrap: wrap; gap: 6px; max-height: 320px; overflow-y: auto; }
+      .tile { width: 66px; cursor: grab; text-align: center; border: 1px solid transparent; border-radius: 6px; padding: 2px; }
+      .tile:hover { background: #20252e; } .tile.picked { border-color: #2d5fd0; background: #1a2436; }
+      .tile .thumb { height: 88px; } .tile .tn { display: block; font-size: 9px; color: #9aa3b0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      /* recs */
+      .recs ol { padding-left: 1.3rem; margin: 4px 0; } .recs li { margin: 2px 0; }
+      .eq { color: #6fcf97; } .step { color: #7aa2f7; }
     </style>
   </head>
   <body>
