@@ -51,6 +51,13 @@ t('cardDetailEl shows compact rider tags for parsed mechanics', () => {
   assert.ok(healTags.includes('heal 30'), `expected a heal tag, got ${healTags}`);
 });
 
+const { cardImageUrl } = await import('./images.js');
+t('cardImageUrl keeps sub-set suffixes lowercase (a4b -> A4b, not A4B)', () => {
+  assert.ok(cardImageUrl('a4b-245')!.includes('/A4b/A4b_245_EN.webp'), 'sub-set suffix stays lowercase');
+  assert.ok(cardImageUrl('a2-110')!.includes('/A2/A2_110_EN.webp'), 'plain set uppercased');
+  assert.ok(cardImageUrl('p-a-042')!.includes('/P-A/P-A_042_EN.webp'), 'promo uppercased whole');
+});
+
 const { slotTargetFromEl } = await import('./dnd.js');
 t('slotTargetFromEl resolves the slot under a touch point', () => {
   const slot = el('div', { class: 'slot', 'data-side': 'opp', 'data-idx': '2' }, el('img', { class: 'cardimg', alt: 'x' }));

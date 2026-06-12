@@ -19,7 +19,7 @@ const CABBR: Record<Condition, string> = { asleep: 'Slp', paralyzed: 'Par', pois
 const CONCRETE = new Set<string>(ENERGIES);
 const concreteOf = (t: EnergyType | undefined): ConcreteEnergy[] => (t && CONCRETE.has(t) ? [t as ConcreteEnergy] : []);
 
-interface Slot { name: string; energy: ConcreteEnergy[]; damage: number; conditions: Condition[]; }
+interface Slot { name: string; id?: string; energy: ConcreteEnergy[]; damage: number; conditions: Condition[]; }
 type Side = 'mine' | 'opp';
 
 const STORAGE_KEY = 'pocket-pilot:board2';
@@ -27,10 +27,21 @@ const board: { mine: (Slot | null)[]; opp: (Slot | null)[]; hand: string[]; pend
   mine: [null, null, null, null], opp: [null, null, null, null], hand: [], pending: '', myPts: 0, oppPts: 0, oppZone: [],
 };
 let selected: { side: Side; idx: number } | null = null;
-let placePending: string | null = null;
+let placePending: { name: string; id: string } | null = null;
 
 // ---- helpers ----------------------------------------------------------------
-const imgFor = (name: string): string | null => (hasCard(name) ? cardImageUrl(findCard(name).id) : null);
+// Image for a placed slot: the exact print (s.id) if known, else the canonical
+// print for that name.
+function slotImageUrl(s: Slot): string | null {
+  const id = s.id ?? (hasCard(s.name) ? findCard(s.name).id : null);
+  return id ? cardImageUrl(id) : null;
+}
+// An <img> that falls back to the card name if the art fails to load.
+function cardImg(url: string, name: string, cls: string): HTMLImageElement {
+  const img = el('img', { class: cls, src: url, alt: name, loading: 'lazy' }) as HTMLImageElement;
+  img.addEventListener('error', () => img.replaceWith(el('div', { class: 'noimg' }, name)));
+  return img;
+}
 
 function toInPlay(s: Slot | null): InPlay | null {
   if (!s || !hasCard(s.name)) return null;
@@ -87,9 +98,9 @@ function load(): void {
 }
 
 // ---- mutations --------------------------------------------------------------
-function place(side: Side, idx: number, name: string): void {
+function place(side: Side, idx: number, name: string, id?: string): void {
   if (!hasCard(name)) return;
-  board[side][idx] = { name, energy: [], damage: 0, conditions: [] };
+  board[side][idx] = { name, ...(id ? { id } : {}), energy: [], damage: 0, conditions: [] };
   selected = { side, idx };
   changed();
 }
@@ -131,7 +142,7 @@ function renderHand(): void {
 
 // Touch-drag: drag a card with a finger onto the slot under it.  Complements the
 // desktop HTML5 drag and the tap-to-place fallback; both stay working.
-function enableTouchDrag(node: HTMLElement, name: string, imgUrl: string | null): void {
+function enableTouchDrag(node: HTMLElement, name: string, id: string, imgUrl: string | null): void {
   node.addEventListener('touchstart', (ev) => {
     const t = (ev as TouchEvent).touches[0];
     if (!t) return;
@@ -158,7 +169,7 @@ function enableTouchDrag(node: HTMLElement, name: string, imgUrl: string | null)
       ghost.remove(); // remove BEFORE hit-testing so the ghost isn't what we hit
       const tt = en.changedTouches[0];
       const tgt = tt ? slotTargetFromPoint(tt.clientX, tt.clientY) : null;
-      if (tgt) place(tgt.side, tgt.idx, name);
+      if (tgt) place(tgt.side, tgt.idx, name, id);
     };
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('touchend', onEnd);
@@ -175,16 +186,16 @@ function slotEl(side: Side, idx: number, label: string): HTMLElement {
   node.addEventListener('dragleave', () => node.classList.remove('drop'));
   node.addEventListener('drop', (e) => {
     e.preventDefault(); node.classList.remove('drop');
-    const name = (e as DragEvent).dataTransfer?.getData('text/plain');
-    if (name) place(side, idx, name);
+    const data = (e as DragEvent).dataTransfer?.getData('text/plain');
+    if (data) { const [name, id] = data.split('|'); place(side, idx, name!, id); }
   });
   node.addEventListener('click', () => {
-    if (placePending) { place(side, idx, placePending); placePending = null; renderSearchSelection(); return; }
+    if (placePending) { place(side, idx, placePending.name, placePending.id); placePending = null; renderSearchSelection(); return; }
     if (s) { selected = { side, idx }; renderBoard(); renderEditor(); }
   });
   if (s) {
-    const url = imgFor(s.name);
-    node.append(url ? el('img', { class: 'cardimg', src: url, alt: s.name, loading: 'lazy' }) : el('div', { class: 'noimg' }, s.name));
+    const url = slotImageUrl(s);
+    node.append(url ? cardImg(url, s.name, 'cardimg') : el('div', { class: 'noimg' }, s.name));
     const badges = el('div', { class: 'badges' });
     if (s.energy.length) badges.append(el('span', { class: 'b en' }, s.energy.map((e) => ABBR[e]).join('')));
     if (s.damage) badges.append(el('span', { class: 'b dmg' }, `-${s.damage}`));
@@ -242,22 +253,24 @@ function renderSearch(query: string): void {
   clear(searchGrid);
   const q = query.trim().toLowerCase();
   if (!q) { searchGrid.append(el('span', { class: 'muted' }, 'Type to search; drag a card onto a slot, or click it then click a slot.')); return; }
-  const hits = ALL_POKEMON.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 36);
-  const seen = new Set<string>();
+  // Show every matching print (alt arts included), grouped by name then set id.
+  const hits = ALL_POKEMON
+    .filter((p) => p.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    .slice(0, 120);
+  if (!hits.length) { searchGrid.append(el('span', { class: 'muted' }, 'No match.')); return; }
   for (const p of hits) {
-    if (seen.has(p.name)) continue;
-    seen.add(p.name);
     const url = cardImageUrl(p.id);
-    const tile = el('div', { class: `tile${placePending === p.name ? ' picked' : ''}`, title: p.name, draggable: 'true' });
-    tile.append(url ? el('img', { class: 'thumb', src: url, alt: p.name, loading: 'lazy' }) : el('div', { class: 'noimg' }, p.name), el('span', { class: 'tn' }, p.name));
-    tile.addEventListener('dragstart', (e) => { (e as DragEvent).dataTransfer?.setData('text/plain', p.name); });
-    tile.addEventListener('click', () => { placePending = placePending === p.name ? null : p.name; renderSearchSelection(); });
-    enableTouchDrag(tile, p.name, url);
+    const tile = el('div', { class: `tile${placePending?.id === p.id ? ' picked' : ''}`, title: `${p.name} (${p.id})`, 'data-id': p.id, draggable: 'true' });
+    tile.append(url ? cardImg(url, p.name, 'thumb') : el('div', { class: 'noimg' }, p.name), el('span', { class: 'tn' }, p.name));
+    tile.addEventListener('dragstart', (e) => { (e as DragEvent).dataTransfer?.setData('text/plain', `${p.name}|${p.id}`); });
+    tile.addEventListener('click', () => { placePending = placePending?.id === p.id ? null : { name: p.name, id: p.id }; renderSearchSelection(); });
+    enableTouchDrag(tile, p.name, p.id, url);
     searchGrid.append(tile);
   }
 }
 function renderSearchSelection(): void {
-  searchGrid.querySelectorAll('.tile').forEach((t) => t.classList.toggle('picked', t.getAttribute('title') === placePending));
+  searchGrid.querySelectorAll('.tile').forEach((t) => t.classList.toggle('picked', t.getAttribute('data-id') === (placePending?.id ?? '')));
 }
 
 // ---- recommendations --------------------------------------------------------

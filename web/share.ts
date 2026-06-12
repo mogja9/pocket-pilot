@@ -5,7 +5,7 @@
 // left as-is here and handled safely downstream (the app validates names via
 // hasCard / findAnyCard before use, and renders all text through el()).
 
-export interface ShareSlot { name: string; energy: string[]; damage: number; conditions: string[]; }
+export interface ShareSlot { name: string; id?: string; energy: string[]; damage: number; conditions: string[]; }
 export interface ShareBoard {
   mine: (ShareSlot | null)[];
   opp: (ShareSlot | null)[];
@@ -34,6 +34,7 @@ function slot(s: unknown): ShareSlot | null {
   if (typeof o.name !== 'string') return null;
   return {
     name: o.name,
+    ...(typeof o.id === 'string' ? { id: o.id } : {}),
     energy: strList(o.energy, ENERGIES, 4),
     damage: Math.max(0, Number(o.damage) || 0),
     conditions: strList(o.conditions, CONDITIONS, 5),
