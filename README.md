@@ -27,7 +27,9 @@ Working:
   That dataset has no attack effect text, so conditional ("40+") and scaling
   ("30x") damage is parsed as a base floor + a `variable` flag, and a small
   hand-curated `COIN_OVERRIDES` table restores real coin-flip riders (e.g.
-  Marowak ex Bonemerang) so the probability modeling stays intact.
+  Marowak ex Bonemerang) so the probability modeling stays intact. The vendored
+  JSON is trimmed to only the fields the engine reads (halves the web bundle to
+  ~66 KB gzipped); regenerate it from source with `npm run build:data`.
 
 - Domain model (`src/types.ts`): energy, cards, in-play Pokemon, both players.
 - Rules (`src/rules.ts`): legal-move generation (attach energy, play/evolve,

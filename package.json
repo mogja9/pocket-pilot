@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx src/engine.test.ts",
     "web:dev": "vite",
-    "web:build": "vite build"
+    "web:build": "vite build",
+    "build:data": "node scripts/build-data.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
