@@ -60,16 +60,29 @@ const STATUS_WORD: Record<string, Condition> = {
 // now Poisoned and Asleep."); coin-gated wordings use lowercase "your" after "If
 // heads," and are deliberately NOT matched here (applyMove is deterministic, so
 // we only commit to guaranteed effects).
-export function defenderConditionsFromText(text: string | undefined): Condition[] {
-  if (!text) return [];
-  const m = /(?:^|\.\s+)Your opponent's Active Pok[eé]mon is now ([A-Za-z ]+?)\./.exec(text);
-  if (!m) return [];
+function parseStatusWords(phrase: string): Condition[] {
   const out: Condition[] = [];
-  for (const word of m[1]!.split(/\s+and\s+/)) {
+  for (const word of phrase.split(/\s+and\s+/)) {
     const cond = STATUS_WORD[word.trim()];
     if (cond && !out.includes(cond)) out.push(cond);
   }
   return out;
+}
+
+export function defenderConditionsFromText(text: string | undefined): Condition[] {
+  if (!text) return [];
+  const m = /(?:^|\.\s+)Your opponent's Active Pok[eé]mon is now ([A-Za-z ]+?)\./.exec(text);
+  return m ? parseStatusWords(m[1]!) : [];
+}
+
+// The coin-gated counterpart: "Flip a coin. If heads, your opponent's Active
+// Pokemon is now Paralyzed/Asleep/...".  Distinguished from the guaranteed form
+// by the lowercase "your" after "If heads,".  Lands only 50% of the time, so the
+// engine blends rather than applying it (see recommend.ts).
+export function coinInflictFromText(text: string | undefined): Condition[] {
+  if (!text) return [];
+  const m = /If heads, your opponent's Active Pok[eé]mon is now ([A-Za-z ]+?)\./.exec(text);
+  return m ? parseStatusWords(m[1]!) : [];
 }
 
 const ENERGY_LETTER: Record<string, ConcreteEnergy> = {

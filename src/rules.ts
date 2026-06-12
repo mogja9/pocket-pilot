@@ -203,6 +203,9 @@ export function applyMove(state: GameState, move: Move): GameState {
         }
         // Snipe / spread damage onto the opponent's other Pokemon (flat).
         if (atk.splash) applySplash(opp, atk.splash);
+        // Coin-gated status (50%) is NOT committed here; mark it so the 2-ply
+        // reply can blend over the coin instead of guessing a single outcome.
+        if (atk.coinInflict?.length && opp.active) opp.active.pendingCoinConditions = [...atk.coinInflict];
         resolveKO(next, (next.toMove ^ 1) as 0 | 1); // the defender (active or bench) may be KO'd
       }
       endTurn(next);

@@ -38,6 +38,7 @@ export function riderTags(a: Attack): { cls: string; label: string }[] {
   if (a.coin?.flips) tags.push({ cls: 'coin', label: `coin x${a.coin.flips}` });
   if (a.coin?.successProbability != null) tags.push({ cls: 'coin', label: `${Math.round(a.coin.successProbability * 100)}% hit` });
   for (const c of a.inflicts ?? []) tags.push({ cls: 'cond', label: COND_TAG[c] });
+  for (const c of a.coinInflict ?? []) tags.push({ cls: 'cond', label: `50% ${COND_TAG[c]}` });
   for (const d of a.discards ?? []) {
     const amt = d.amount === 'all' ? 'all' : String(d.amount);
     tags.push(d.target === 'self'

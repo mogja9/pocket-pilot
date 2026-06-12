@@ -343,6 +343,27 @@ test('splash rider: a snipe finishes a damaged benched ex for +2', () => {
   assert.match(describeMove(state, { type: 'attack', attackIndex: waIdx }), /KOs a benched Pokemon \(\+2 pts\)/);
 });
 
+test('coin-gated disruption: a 50% paralyze raises the attack value vs vanilla', () => {
+  const real = findCard('Articuno'); // Ice Beam: 60, flip a coin -> 50% paralyze
+  assert.deepEqual(real.attacks.find((a) => a.name === 'Ice Beam')!.coinInflict, ['paralyzed']);
+  // Board where the opponent's reply would KO my 40-HP-left Articuno.
+  const mkState = (myCard: typeof real): GameState => ({
+    toMove: 0, turn: 8, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: { card: myCard, energy: ['Water', 'Water', 'Water'], damage: 60, turnPlayedOrEvolved: 0 },
+        bench: [], hand: [], deckCount: 12, discardCount: 0, points: 0, energyZone: ['Water'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex', ['Lightning', 'Lightning']), bench: [ip('Pikachu', ['Lightning'])],
+        hand: [], deckCount: 12, discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  });
+  const attackVal = (recs: ReturnType<typeof recommend>) => recs.find((r) => r.move.type === 'attack')!.value;
+  const withPara = attackVal(recommend(mkState(real)));
+  const vanilla = structuredClone(real);
+  vanilla.attacks.find((a) => a.name === 'Ice Beam')!.coinInflict = undefined;
+  const without = attackVal(recommend(mkState(vanilla)));
+  assert.ok(withPara > without, `50% paralyze should raise the attack EV (${withPara} vs ${without})`);
+});
+
 test('trainer: Sabrina switches the opponent active', () => {
   const sabrina = findAnyCard('Sabrina');
   assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');

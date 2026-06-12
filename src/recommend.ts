@@ -50,8 +50,21 @@ function bestReply(stateAfterMyTurn: GameState, me: 0 | 1): { plan: Move[]; stat
 
 // Value to `me` of a state where MY turn just ended (opponent to move), after
 // the opponent plays their best reply.  This is what makes the engine avoid
-// hanging a Pokemon to a lethal counterattack.
+// hanging a Pokemon to a lethal counterattack.  If my attack carries a coin-gated
+// status on the opponent's Active (50% paralyze/asleep that often denies their
+// reply), blend the two coin outcomes rather than guessing one.
 function postReplyValue(stateAfterMyTurn: GameState, me: 0 | 1): number {
+  const opp = (me ^ 1) as 0 | 1;
+  const gated = stateAfterMyTurn.players[opp]!.active?.pendingCoinConditions;
+  if (gated && gated.length) {
+    const tails = structuredClone(stateAfterMyTurn);
+    delete tails.players[opp]!.active!.pendingCoinConditions;
+    const heads = structuredClone(stateAfterMyTurn);
+    const ha = heads.players[opp]!.active!;
+    ha.conditions = [...new Set([...(ha.conditions ?? []), ...gated])];
+    delete ha.pendingCoinConditions;
+    return 0.5 * evaluate(bestReply(heads, me).state, me) + 0.5 * evaluate(bestReply(tails, me).state, me);
+  }
   return evaluate(bestReply(stateAfterMyTurn, me).state, me);
 }
 

@@ -51,6 +51,7 @@ export interface Attack {
   discards?: EnergyDiscard[]; // energy this attack discards (from self and/or the defender)
   heal?: { amount: number; scope: 'self' | 'team' }; // damage healed off your side
   splash?: SplashDamage;   // snipe / bench / spread damage on top of the main hit
+  coinInflict?: Condition[]; // conditions inflicted on the defender on a coin heads (50%)
   text?: string;
 }
 
@@ -91,6 +92,10 @@ export interface InPlay {
   damage: number;            // damage taken (KO when damage >= hp)
   turnPlayedOrEvolved: number; // for evolution / summoning-sickness timing
   conditions?: Condition[];  // special conditions (undefined = none)
+  // Transient: conditions a just-resolved attack MIGHT inflict on this Pokemon on
+  // a coin heads.  Set by applyMove (not yet a real condition); the 2-ply reply
+  // (recommend.ts) blends over the 50% rather than committing in a single state.
+  pendingCoinConditions?: Condition[];
 }
 
 export interface PlayerState {
