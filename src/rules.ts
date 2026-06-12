@@ -2,6 +2,7 @@ import type {
   GameState, PlayerState, InPlay, Attack, ConcreteEnergy, EnergyType,
 } from './types.js';
 import { BENCH_SIZE, WEAKNESS_BONUS } from './types.js';
+import { scalingFor } from './effects.js';
 
 // A single legal action a player can take.  Attacks and endTurn are terminal
 // (they end the turn); the rest can be chained within a turn.
@@ -33,10 +34,22 @@ export function canPayCost(have: ConcreteEnergy[], cost: EnergyType[]): boolean 
 }
 
 // Expected damage of `attack` from `attacker` onto `defender`, averaging over
-// coin flips and applying Pokemon-Pocket weakness (+20 to a damaging hit).
-export function expectedDamage(attack: Attack, attacker: InPlay, defender: InPlay): number {
+// coin flips and applying Pokemon-Pocket weakness (+20 to a damaging hit).  When
+// the attacking/defending players are supplied, board-dependent attacks (e.g.
+// Pikachu ex Circle Circuit = 30 x benched Lightning) compute their real base
+// from the live board via the scaling registry; otherwise the dataset's flat
+// base is used as a floor.
+export function expectedDamage(
+  attack: Attack, attacker: InPlay, defender: InPlay,
+  me?: PlayerState, opp?: PlayerState,
+): number {
+  let base = attack.damage;
+  if (me && opp) {
+    const scale = scalingFor(attacker.card.name, attack.name);
+    if (scale) base = scale({ attacker, defender, me, opp });
+  }
   const coinEV = attack.coin ? attack.coin.flips * 0.5 * attack.coin.damagePerHeads : 0;
-  let dmg = attack.damage + coinEV;
+  let dmg = base + coinEV;
   if (dmg > 0 && defender.card.weakness && attacker.card.type === defender.card.weakness) {
     dmg += WEAKNESS_BONUS;
   }
@@ -135,7 +148,7 @@ export function applyMove(state: GameState, move: Move): GameState {
     case 'attack': {
       const atk = me.active?.card.attacks[move.attackIndex];
       if (me.active && atk && opp.active) {
-        opp.active.damage += expectedDamage(atk, me.active, opp.active);
+        opp.active.damage += expectedDamage(atk, me.active, opp.active, me, opp);
         if (opp.active.damage >= opp.active.card.hp) {
           me.points += opp.active.card.isEx ? 2 : 1; // KO scores points
           opp.active = opp.bench.shift() ?? null;    // promote a benched Pokemon

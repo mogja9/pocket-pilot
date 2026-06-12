@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { GameState, InPlay, ConcreteEnergy } from './types.js';
+import type { GameState, InPlay, ConcreteEnergy, PlayerState } from './types.js';
 import { findCard, ALL_POKEMON } from './data.js';
 import { canPayCost, expectedDamage } from './rules.js';
 import { recommend } from './recommend.js';
@@ -88,6 +88,20 @@ test('2-ply: retreats a threatened ex instead of hanging it to a lethal reply', 
   const attackLine = recs.find((r) => r.move.type === 'attack');
   assert.ok(attackLine && attackLine.value < top.value,
     'hanging the ex to a lethal reply should score worse than retreating');
+});
+
+test('scaling: Circle Circuit deals 30 x benched Lightning', () => {
+  const pikachu = ip('Pikachu ex', ['Lightning', 'Lightning']);
+  const cc = pikachu.card.attacks.find((a) => a.name === 'Circle Circuit')!;
+  const defender = ip('Charmander'); // Fire, not weak to Lightning
+  const mk = (bench: InPlay[]): PlayerState => ({
+    name: 'p', active: pikachu, bench, hand: [], deckCount: 0, discardCount: 0,
+    points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false,
+  });
+  const opp = mk([]);
+  assert.equal(expectedDamage(cc, pikachu, defender, mk([]), opp), 0, '0 benched Lightning -> 0');
+  const twoLightning = mk([ip('Pikachu ex'), ip('Pikachu ex')]);
+  assert.equal(expectedDamage(cc, pikachu, defender, twoLightning, opp), 60, '2 benched Lightning -> 60');
 });
 
 console.log(`\n${passed} passed`);

@@ -10,7 +10,7 @@ imperfect-information card game: enumerate the legal actions for the turn, searc
 the action sequences (setup plays then an attack), and score the resulting
 positions with a heuristic evaluator.
 
-## Status: v0.4 (engine + real data + 2-ply defense + browser-runnable web app)
+## Status: v0.6 (engine + real data + 2-ply defense + scaling attacks + web app)
 
 Working:
 
@@ -25,7 +25,8 @@ Working:
 - Domain model (`src/types.ts`): energy, cards, in-play Pokemon, both players.
 - Rules (`src/rules.ts`): legal-move generation (attach energy, play/evolve,
   retreat, attack, pass), Colorless-as-wildcard cost matching, and expected
-  damage (coin-flip EV + Pocket weakness).
+  damage (coin-flip EV + Pocket weakness + board-dependent scaling via
+  `src/effects.ts`, e.g. Pikachu ex Circle Circuit = 30 x benched Lightning).
 - Evaluator (`src/evaluate.ts`): points-first heuristic over board HP, active
   pressure, energy tempo, and board presence.
 - Recommender (`src/recommend.ts`): **2-ply** search. It plans my full turn and
