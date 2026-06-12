@@ -1,9 +1,9 @@
 import type { GameState, InPlay, PlayerState, ConcreteEnergy } from './types.js';
-import { card } from './cards.js';
+import { findCard } from './data.js';
 import { recommend, describeMove } from './recommend.js';
 
-function inPlay(id: Parameters<typeof card>[0], energy: ConcreteEnergy[] = [], damage = 0): InPlay {
-  return { card: card(id), energy, damage, turnPlayedOrEvolved: 1 };
+function inPlay(name: string, energy: ConcreteEnergy[] = [], damage = 0): InPlay {
+  return { card: findCard(name), energy, damage, turnPlayedOrEvolved: 1 };
 }
 
 function player(name: string, p: Partial<PlayerState>): PlayerState {
@@ -22,15 +22,15 @@ const state: GameState = {
   isFirstPlayerFirstTurn: false,
   players: [
     player('You', {
-      active: inPlay('charizard_ex', ['Fire', 'Fire', 'Fire']),
-      bench: [inPlay('marowak_ex', ['Fighting']), inPlay('articuno_ex')],
-      hand: [card('charmander')],
+      active: inPlay('Charizard ex', ['Fire', 'Fire', 'Fire']),
+      bench: [inPlay('Marowak ex', ['Fighting']), inPlay('Articuno ex')],
+      hand: [findCard('Charmander')],
       energyZone: ['Fire'],
       pendingEnergy: 'Fire',
     }),
     player('Opponent', {
-      active: inPlay('pikachu_ex', ['Lightning', 'Lightning']),
-      bench: [inPlay('articuno_ex')],
+      active: inPlay('Pikachu ex', ['Lightning', 'Lightning']),
+      bench: [inPlay('Articuno ex')],
       energyZone: ['Lightning'],
     }),
   ],

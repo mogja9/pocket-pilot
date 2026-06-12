@@ -26,6 +26,7 @@ export interface Attack {
   cost: EnergyType[];      // e.g. ['Fire','Fire','Colorless']
   damage: number;          // base damage before weakness / coin flips
   coin?: CoinFlipEffect;   // optional coin-flip rider
+  variable?: boolean;      // damage string had a + or x (conditional/scaling); base is a floor
   text?: string;
 }
 
@@ -33,7 +34,7 @@ export interface PokemonCard {
   id: string;
   name: string;
   kind: 'Pokemon';
-  type: ConcreteEnergy | 'Dragon';
+  type: EnergyType;        // element (may be Colorless or Dragon)
   hp: number;
   stage: Stage;
   evolvesFrom?: string;    // name of the pre-evolution

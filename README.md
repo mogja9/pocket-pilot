@@ -10,9 +10,17 @@ imperfect-information card game: enumerate the legal actions for the turn, searc
 the action sequences (setup plays then an attack), and score the resulting
 positions with a heuristic evaluator.
 
-## Status: v0 (engine core)
+## Status: v0.2 (engine core + real card data)
 
 Working:
+
+- **Real card data** (`src/data.ts`, `data/ptcgp-cards.json`): all 2759 cards
+  (2520 Pokemon + 239 trainers) vendored from
+  `hugoburguete/pokemon-tcg-pocket-card-database`, mapped to the engine model.
+  That dataset has no attack effect text, so conditional ("40+") and scaling
+  ("30x") damage is parsed as a base floor + a `variable` flag, and a small
+  hand-curated `COIN_OVERRIDES` table restores real coin-flip riders (e.g.
+  Marowak ex Bonemerang) so the probability modeling stays intact.
 
 - Domain model (`src/types.ts`): energy, cards, in-play Pokemon, both players.
 - Rules (`src/rules.ts`): legal-move generation (attach energy, play/evolve,
@@ -38,8 +46,8 @@ The demo shows the engine discovering that "attach Fire, then Crimson Storm"
 
 ## Roadmap (next loop iterations)
 
-1. Replace the seed cards with the full `flibustier/pokemon-tcg-pocket-database`
-   JSON dataset (cards, sets, pull rates).
+1. Done: real card dataset integrated (see Status). Next data step: enrich
+   attack effect text (the `+`/`x` riders and abilities) from a fuller source.
 2. Model the opponent's reply (2-ply: my best turn vs their best response) and
    special conditions (sleep/paralysis/poison) and ability/trainer effects.
 3. Board-dependent attacks (e.g. Pikachu ex scaling per benched Lightning).
