@@ -1,4 +1,5 @@
 import type { PokemonCard, TrainerCard, Card, Attack, EnergyType, ConcreteEnergy, Stage, CoinFlipEffect } from './types.js';
+import { coinRiderFromText } from './effect-text.js';
 
 // PURE card-data adapter (no fs, no JSON import) so it runs in both Node and the
 // browser.  `buildIndex(raw)` maps the hugoburguete dataset schema to the engine
@@ -14,12 +15,14 @@ export interface RawCard {
   text?: string; // trainer effect text
 }
 
-// Hand-curated coin-flip riders for attacks whose real effect the dataset can't
-// express (it lacks effect text).  When present the attack's base damage is set
-// to 0 and the rider carries the damage.  Keyed by `${cardName}::${attackName}`.
-const COIN_OVERRIDES: Record<string, CoinFlipEffect> = {
-  'Marowak ex::Bonemerang': { flips: 2, damagePerHeads: 80 }, // flip 2, 80 per heads
-};
+// Last-resort hand-curated coin-flip riders, for the rare attack whose wording
+// the text parser (effect-text.ts) can't safely template.  An override is always
+// a per-heads rider, so the attack's base damage is set to 0 and the rider
+// carries the damage.  Keyed by `${cardName}::${attackName}`.
+//
+// Empty today: the regular coin templates (incl. Marowak ex Bonemerang) are now
+// derived from the dataset's real effect text instead of being hardcoded here.
+const COIN_OVERRIDES: Record<string, CoinFlipEffect> = {};
 
 const CONCRETE = new Set<string>(['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal']);
 
@@ -37,11 +40,21 @@ function toStage(subtype: string | undefined): Stage {
 
 function adaptAttack(cardName: string, a: NonNullable<RawCard['attacks']>[number]): Attack {
   const { damage, variable } = parseDamage(a.damage);
-  const coin = COIN_OVERRIDES[`${cardName}::${a.name}`];
+  const override = COIN_OVERRIDES[`${cardName}::${a.name}`];
+  const textRider = override ? null : coinRiderFromText(a.text);
+  const coin: CoinFlipEffect | undefined = override
+    ? override
+    : textRider
+      ? { flips: textRider.flips, damagePerHeads: textRider.damagePerHeads }
+      : undefined;
+  // A per-heads rider ("Nx" = "N damage for each heads") means the dataset's
+  // number is the per-heads value, so the flat base is 0.  A heads-bonus rider
+  // ("N+" = "+N on heads") keeps the flat base.
+  const zeroBase = override ? true : textRider?.zeroBase ?? false;
   return {
     name: a.name,
     cost: (a.cost ?? []) as EnergyType[],
-    damage: coin ? 0 : damage, // a coin rider replaces the base "Nx" number
+    damage: zeroBase ? 0 : damage,
     variable: variable || undefined,
     ...(coin ? { coin } : {}),
     // Prefer the real effect text now that the dataset carries it; fall back to

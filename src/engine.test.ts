@@ -54,6 +54,22 @@ test('expectedDamage: coin override EV + weakness', () => {
   assert.equal(expectedDamage(bonemerang, marowak, ip('Pikachu ex')), 100);
 });
 
+test('coin riders: derived from attack effect text (no hand-coding)', () => {
+  const grassDefender = ip('Charmander'); // Fire, not weak to Grass -> no weakness noise
+  // P1 "Flip 2 coins. This attack does 50 damage for each heads." -> base 0, EV 50.
+  const pinsir = ip('Pinsir');
+  const doubleHorn = pinsir.card.attacks.find((a) => a.name === 'Double Horn')!;
+  assert.deepEqual(doubleHorn.coin, { flips: 2, damagePerHeads: 50 });
+  assert.equal(doubleHorn.damage, 0, 'per-heads rider zeroes the flat base');
+  assert.equal(expectedDamage(doubleHorn, pinsir, grassDefender), 50);
+  // P2 "Flip a coin. If heads, this attack does 30 more damage." -> base 30 + EV 15.
+  const exeggutor = ip('Exeggutor');
+  const stomp = exeggutor.card.attacks.find((a) => a.name === 'Stomp')!;
+  assert.deepEqual(stomp.coin, { flips: 1, damagePerHeads: 30 });
+  assert.equal(stomp.damage, 30, 'heads-bonus rider keeps the flat base');
+  assert.equal(expectedDamage(stomp, exeggutor, grassDefender), 45);
+});
+
 test('recommend: finds the attach-then-Crimson-Storm KO of an ex', () => {
   const zard = findCard('Charizard ex');
   const crimsonIdx = zard.attacks.findIndex((a) => a.name === 'Crimson Storm');
