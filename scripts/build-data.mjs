@@ -16,7 +16,8 @@ const SETS = [
   'a1-genetic-apex', 'a1a-mythical-island', 'a2-space-time-smackdown', 'a2a-triumphant-light',
   'a2b-shining-revelry', 'a3-celestial-guardians', 'a3a-extradimensional-crisis', 'a3b-eevee-grove',
   'a4-wisdom-of-sea-and-sky', 'a4a-secluded-springs', 'a4b-deluxe-pack-ex', 'b1-mega-rising',
-  'b1a-crimson-blaze', 'b2-fantastical-parade', 'b2a-paldean-wonders',
+  'b1a-crimson-blaze', 'b2-fantastical-parade', 'b2a-paldean-wonders', 'b2b-mega-shine',
+  'b3-pulsing-aura', 'b3a-paradox-drive', 'promo-a', 'promo-b',
 ];
 
 const trim = (c) => {
