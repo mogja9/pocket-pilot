@@ -79,6 +79,10 @@ export interface PlayerState {
   energyZone: ConcreteEnergy[];   // the (up to 3) registered energy types
   pendingEnergy: ConcreteEnergy | null; // energy generated this turn, not yet attached
   energyAttachedThisTurn: boolean;
+  // Per-turn trainer state / modifiers (undefined = 0 / false):
+  supporterUsedThisTurn?: boolean; // at most one Supporter per turn
+  attackBonus?: number;            // +damage to this player's attacks this turn (Giovanni)
+  retreatReduction?: number;       // reduced retreat cost this turn (X Speed)
 }
 
 export interface GameState {

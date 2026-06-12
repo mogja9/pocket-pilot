@@ -72,8 +72,9 @@ export function adapt(r: RawCard): Card {
 export interface CardIndex {
   ALL_CARDS: Card[];
   ALL_POKEMON: PokemonCard[];
-  findCard: (name: string) => PokemonCard;
-  hasCard: (name: string) => boolean;
+  findCard: (name: string) => PokemonCard;     // Pokemon only (throws if unknown)
+  hasCard: (name: string) => boolean;          // is a Pokemon
+  findAnyCard: (name: string) => Card | undefined; // any card (Pokemon or trainer)
 }
 
 export function buildIndex(raw: RawCard[]): CardIndex {
@@ -85,6 +86,8 @@ export function buildIndex(raw: RawCard[]): CardIndex {
     arr.push(p);
     byName.set(p.name, arr);
   }
+  const byAnyName = new Map<string, Card>();
+  for (const c of ALL_CARDS) if (!byAnyName.has(c.name)) byAnyName.set(c.name, c);
   return {
     ALL_CARDS,
     ALL_POKEMON,
@@ -94,5 +97,6 @@ export function buildIndex(raw: RawCard[]): CardIndex {
       return hits[0]!;
     },
     hasCard: (name: string) => byName.has(name),
+    findAnyCard: (name: string) => byAnyName.get(name),
   };
 }

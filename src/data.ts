@@ -10,4 +10,4 @@ const RAW: RawCard[] = JSON.parse(
 
 const index = buildIndex(RAW);
 
-export const { ALL_CARDS, ALL_POKEMON, findCard, hasCard } = index;
+export const { ALL_CARDS, ALL_POKEMON, findCard, hasCard, findAnyCard } = index;

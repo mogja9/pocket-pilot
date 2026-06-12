@@ -67,7 +67,7 @@ export function recommend(state: GameState): Recommendation[] {
   // is more informative to surface than a bare energy attach that merely sets
   // up the same line).
   const PRIORITY: Record<Move['type'], number> = {
-    attack: 3, retreat: 3, evolve: 2, attachEnergy: 1, playBasic: 1, endTurn: 0,
+    attack: 3, retreat: 3, playTrainer: 2, evolve: 2, attachEnergy: 1, playBasic: 1, endTurn: 0,
   };
   recs.sort((a, b) =>
     Math.abs(a.value - b.value) > 1e-6 ? b.value - a.value : PRIORITY[b.move.type] - PRIORITY[a.move.type],
@@ -86,6 +86,8 @@ export function describeMove(state: GameState, m: Move): string {
       return `Evolve into ${me.hand[m.handIndex]?.name ?? '?'} (${m.target === 'active' ? 'active' : `bench ${m.target}`})`;
     case 'retreat':
       return `Retreat ${me.active?.card.name ?? 'active'} -> ${me.bench[m.benchIndex]?.card.name ?? m.benchIndex}`;
+    case 'playTrainer':
+      return `Play ${me.hand[m.handIndex]?.name ?? 'trainer'}`;
     case 'attack':
       return `Attack: ${me.active?.card.attacks[m.attackIndex]?.name ?? '?'}`;
     case 'endTurn':

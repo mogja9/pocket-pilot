@@ -3,6 +3,7 @@ import type {
 } from './types.js';
 import { BENCH_SIZE, WEAKNESS_BONUS } from './types.js';
 import { scalingFor } from './effects.js';
+import { trainerEffect } from './trainers.js';
 
 // A single legal action a player can take.  Attacks and endTurn are terminal
 // (they end the turn); the rest can be chained within a turn.
@@ -11,6 +12,7 @@ export type Move =
   | { type: 'evolve'; handIndex: number; target: 'active' | number }
   | { type: 'playBasic'; handIndex: number }
   | { type: 'retreat'; benchIndex: number }
+  | { type: 'playTrainer'; handIndex: number }
   | { type: 'attack'; attackIndex: number }
   | { type: 'endTurn' };
 
@@ -48,6 +50,8 @@ export function expectedDamage(
     const scale = scalingFor(attacker.card.name, attack.name);
     if (scale) base = scale({ attacker, defender, me, opp });
   }
+  // Giovanni-style flat boost applies to damaging attacks only.
+  if (me && (base > 0 || attack.coin)) base += me.attackBonus ?? 0;
   const coinEV = attack.coin ? attack.coin.flips * 0.5 * attack.coin.damagePerHeads : 0;
   let dmg = base + coinEV;
   if (dmg > 0 && defender.card.weakness && attacker.card.type === defender.card.weakness) {
@@ -87,10 +91,22 @@ export function legalMoves(state: GameState): Move[] {
     }
   });
 
-  // Retreat (swap active with a benched Pokemon), if we can pay the cost.
-  if (me.active && !activeLocked && me.bench.length > 0 && me.active.energy.length >= me.active.card.retreatCost) {
+  // Retreat (swap active with a benched Pokemon), if we can pay the cost
+  // (reduced by X Speed this turn).
+  const retreatCost = me.active ? Math.max(0, me.active.card.retreatCost - (me.retreatReduction ?? 0)) : 0;
+  if (me.active && !activeLocked && me.bench.length > 0 && me.active.energy.length >= retreatCost) {
     me.bench.forEach((_, i) => moves.push({ type: 'retreat', benchIndex: i }));
   }
+
+  // Play a combat-relevant trainer card from hand (one Supporter per turn).
+  me.hand.forEach((c, handIndex) => {
+    if (c.kind === 'Pokemon') return;
+    const eff = trainerEffect(c.name);
+    if (!eff) return;
+    if (eff.kind === 'Supporter' && me.supporterUsedThisTurn) return;
+    if (eff.usable && !eff.usable(state, state.toMove)) return;
+    moves.push({ type: 'playTrainer', handIndex });
+  });
 
   // Attack with the active Pokemon (terminal).
   if (me.active && !activeLocked) {
@@ -141,9 +157,22 @@ export function applyMove(state: GameState, move: Move): GameState {
     case 'retreat': {
       const benched = me.bench[move.benchIndex];
       if (me.active && benched) {
-        me.active.energy.splice(0, me.active.card.retreatCost); // pay cost
+        const cost = Math.max(0, me.active.card.retreatCost - (me.retreatReduction ?? 0));
+        me.active.energy.splice(0, cost); // pay cost
         me.bench[move.benchIndex] = me.active;
         me.active = benched;
+      }
+      break;
+    }
+    case 'playTrainer': {
+      const c = me.hand[move.handIndex];
+      if (c && c.kind !== 'Pokemon') {
+        const eff = trainerEffect(c.name);
+        if (eff) {
+          eff.apply(next, next.toMove);
+          if (eff.kind === 'Supporter') me.supporterUsedThisTurn = true;
+          me.hand.splice(move.handIndex, 1);
+        }
       }
       break;
     }
@@ -192,5 +221,8 @@ function endTurn(state: GameState): void {
   state.isFirstPlayerFirstTurn = false;
   const p = state.players[state.toMove];
   p.energyAttachedThisTurn = false;
+  p.supporterUsedThisTurn = false; // fresh turn: reset per-turn trainer modifiers
+  p.attackBonus = 0;
+  p.retreatReduction = 0;
   // The new player's energy generation is modeled at advise-time, not here.
 }

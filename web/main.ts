@@ -2,10 +2,10 @@ import rawCards from '../data/ptcgp-cards.json';
 import { buildIndex, type RawCard } from '../src/card-index.js';
 import { recommend, describeMove } from '../src/recommend.js';
 import { applyMove } from '../src/rules.js';
-import type { GameState, InPlay, PlayerState, ConcreteEnergy, EnergyType, Condition } from '../src/types.js';
+import type { GameState, InPlay, PlayerState, ConcreteEnergy, EnergyType, Condition, Card } from '../src/types.js';
 import { el, clear } from './dom.js';
 
-const { findCard, hasCard, ALL_POKEMON } = buildIndex(rawCards as RawCard[]);
+const { findCard, hasCard, findAnyCard, ALL_CARDS } = buildIndex(rawCards as RawCard[]);
 
 const ENERGIES: ConcreteEnergy[] = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal'];
 const ABBR: Record<ConcreteEnergy, string> = {
@@ -14,8 +14,8 @@ const ABBR: Record<ConcreteEnergy, string> = {
 const CONCRETE = new Set<string>(ENERGIES);
 const concreteOf = (t: EnergyType | undefined): ConcreteEnergy[] => (t && CONCRETE.has(t) ? [t as ConcreteEnergy] : []);
 
-// A datalist of every unique Pokemon name for native autocomplete on inputs.
-const names = [...new Set(ALL_POKEMON.map((p) => p.name))].sort();
+// A datalist of every unique card name (Pokemon + trainers) for autocomplete.
+const names = [...new Set(ALL_CARDS.map((c) => c.name))].sort();
 const datalist = el('datalist', { id: 'cards' }, ...names.map((n) => el('option', { value: n })));
 
 const CONDITIONS: Condition[] = ['asleep', 'paralyzed', 'poisoned', 'burned', 'confused'];
@@ -68,6 +68,20 @@ const pendingSel = el('select', {}, el('option', { value: '' }, '(none)'), ...EN
 const myPts = el('input', { type: 'number', min: '0', max: '3', value: '0', class: 'pts' }) as HTMLInputElement;
 const oppPts = el('input', { type: 'number', min: '0', max: '3', value: '0', class: 'pts' }) as HTMLInputElement;
 
+// Your hand (playable cards this turn: trainers, basics to bench, evolutions).
+const handInputs = Array.from({ length: 4 }, () =>
+  el('input', { class: 'hand-input', list: 'cards', placeholder: 'hand card', autocomplete: 'off' }) as HTMLInputElement);
+function readHand(): Card[] {
+  const out: Card[] = [];
+  for (const inp of handInputs) {
+    const n = inp.value.trim();
+    if (!n) continue;
+    const c = findAnyCard(n);
+    if (c) out.push(c);
+  }
+  return out;
+}
+
 function player(name: string, slots: Slot[], points: number, pending: ConcreteEnergy | null): PlayerState {
   const active = slots[0]!.read();
   const bench = slots.slice(1).map((s) => s.read()).filter((x): x is InPlay => x !== null);
@@ -83,12 +97,11 @@ function readState(): GameState | string {
   if (!oppSlots[0]!.read()) return "Enter the opponent's active Pokemon.";
   const pending = (pendingSel.value || null) as ConcreteEnergy | null;
   const clamp = (v: string) => Math.max(0, Math.min(3, Number(v) || 0));
+  const me = player('You', mySlots, clamp(myPts.value), pending);
+  me.hand = readHand();
   return {
     toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
-    players: [
-      player('You', mySlots, clamp(myPts.value), pending),
-      player('Opponent', oppSlots, clamp(oppPts.value), null),
-    ],
+    players: [me, player('Opponent', oppSlots, clamp(oppPts.value), null)],
   };
 }
 
@@ -137,6 +150,10 @@ app.append(
   ),
   el('div', { class: 'card' },
     el('div', { class: 'grid' }, ...oppSlots.map((s) => s.root)),
+  ),
+  el('div', { class: 'card' },
+    el('label', { class: 'muted' }, 'Your hand (playable this turn: trainers, basics, evolutions)'),
+    el('div', { class: 'erow' }, ...handInputs),
   ),
   el('div', { class: 'card controls' },
     el('label', {}, 'Energy this turn ', pendingSel),

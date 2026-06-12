@@ -10,7 +10,14 @@ imperfect-information card game: enumerate the legal actions for the turn, searc
 the action sequences (setup plays then an attack), and score the resulting
 positions with a heuristic evaluator.
 
-## Status: v0.6 (engine + real data + 2-ply defense + scaling attacks + web app)
+## Status: v0.8 (engine + 2-ply defense + scaling + conditions + trainers + web app)
+
+Models special conditions (asleep/paralyzed lock the active; poison/burn tick at
+the checkup; confusion halves attacks) and a small registry of combat-relevant
+trainers (`src/trainers.ts`: Giovanni +10, Sabrina switch, Potion heal, X Speed,
+Professor's Research), with the one-Supporter-per-turn rule. The web UI takes
+per-Pokemon damage + conditions and your hand, so `playTrainer` lines surface in
+the recommendations.
 
 Working:
 

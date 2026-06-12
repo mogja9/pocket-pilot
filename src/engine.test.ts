@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { GameState, InPlay, ConcreteEnergy, PlayerState } from './types.js';
-import { findCard, ALL_POKEMON } from './data.js';
+import { findCard, findAnyCard, ALL_POKEMON } from './data.js';
 import { canPayCost, expectedDamage, legalMoves, applyMove } from './rules.js';
 import { recommend } from './recommend.js';
 
@@ -137,6 +137,37 @@ test('condition: poison ticks 10 damage at the between-turn checkup', () => {
   const after = applyMove(state, { type: 'endTurn' });
   assert.equal(after.players[0]!.active!.damage, 10, 'poisoned active takes 10 at checkup');
   assert.equal(after.players[1]!.active!.damage, 0, 'un-poisoned active unaffected');
+});
+
+test('trainer: Sabrina switches the opponent active', () => {
+  const sabrina = findAnyCard('Sabrina');
+  assert.ok(sabrina && sabrina.kind === 'Supporter', 'Sabrina is a Supporter');
+  const state: GameState = {
+    toMove: 0, turn: 5, isFirstPlayerFirstTurn: false,
+    players: [
+      { name: 'me', active: ip('Charizard ex'), bench: [], hand: [sabrina], deckCount: 0, discardCount: 0,
+        points: 0, energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false },
+      { name: 'opp', active: ip('Pikachu ex'), bench: [ip('Charmander')], hand: [], deckCount: 0,
+        discardCount: 0, points: 0, energyZone: ['Lightning'], pendingEnergy: null, energyAttachedThisTurn: false },
+    ],
+  };
+  const play = legalMoves(state).find((m) => m.type === 'playTrainer');
+  assert.ok(play, 'Sabrina is a legal play (opponent has a bench)');
+  const after = applyMove(state, play!);
+  assert.equal(after.players[1]!.active!.card.name, 'Charmander', 'opponent active was switched to the bench');
+});
+
+test('trainer: Giovanni adds +10 to a damaging attack', () => {
+  const attacker = ip('Charizard ex', ['Fire', 'Fire', 'Fire']);
+  const defender = ip('Pikachu ex'); // Lightning, not weak to Fire
+  const slash = attacker.card.attacks.find((a) => a.name === 'Slash')!;
+  const mk = (bonus?: number): PlayerState => ({
+    name: 'p', active: attacker, bench: [], hand: [], deckCount: 0, discardCount: 0, points: 0,
+    energyZone: ['Fire'], pendingEnergy: null, energyAttachedThisTurn: false, attackBonus: bonus,
+  });
+  const base = expectedDamage(slash, attacker, defender, mk(), mk());
+  const boosted = expectedDamage(slash, attacker, defender, mk(10), mk());
+  assert.equal(boosted - base, 10, 'Giovanni adds +10');
 });
 
 console.log(`\n${passed} passed`);
