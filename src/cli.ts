@@ -1,6 +1,7 @@
 import type { GameState, InPlay, PlayerState, ConcreteEnergy } from './types.js';
-import { findCard } from './data.js';
-import { recommend, describeMove } from './recommend.js';
+import { findCard, findAnyCard } from './data.js';
+import { applyMove } from './rules.js';
+import { recommend, describeMove, summarizeBestLine } from './recommend.js';
 
 function inPlay(name: string, energy: ConcreteEnergy[] = [], damage = 0): InPlay {
   return { card: findCard(name), energy, damage, turnPlayedOrEvolved: 1 };
@@ -24,7 +25,7 @@ const state: GameState = {
     player('You', {
       active: inPlay('Charizard ex', ['Fire', 'Fire', 'Fire']),
       bench: [inPlay('Marowak ex', ['Fighting']), inPlay('Articuno ex')],
-      hand: [findCard('Charmander')],
+      hand: [findCard('Charmander'), findAnyCard('Giovanni')!],
       energyZone: ['Fire'],
       pendingEnergy: 'Fire',
     }),
@@ -51,9 +52,17 @@ console.log(`Opponent active: ${fmtPokemon(opp.active)}`);
 console.log(`Points:          you ${me.points} - ${opp.points} opp\n`);
 
 const recs = recommend(state);
+const summary = summarizeBestLine(state, recs);
+if (summary) {
+  const tag = summary.won ? 'WIN' : summary.kos ? `+${summary.pointSwing}` : summary.survivesReply ? 'SAFE' : 'RISK';
+  console.log(`Verdict [${tag}]: ${summary.text}`);
+  if (summary.oppReply && !summary.won) console.log(`Opponent likely: ${summary.oppReply.text}`);
+  console.log('');
+}
+
 console.log('Recommended plays (ranked by win-equity):');
 recs.slice(0, 5).forEach((r, i) => {
-  console.log(`  ${i + 1}. ${describeMove(state, r.move).padEnd(40)} equity ${r.value.toFixed(0)}`);
+  console.log(`  ${i + 1}. ${describeMove(state, r.move).padEnd(48)} equity ${r.value.toFixed(0)}`);
 });
 
 const best = recs[0];
@@ -63,7 +72,6 @@ if (best) {
   let s = state;
   for (const m of best.plan) {
     console.log(`  -> ${describeMove(s, m)}`);
-    const { applyMove } = await import('./rules.js');
     s = applyMove(s, m);
   }
 }
