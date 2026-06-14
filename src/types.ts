@@ -41,12 +41,58 @@ export interface SplashDamage {
   benchOnly: boolean;       // restrict to the opponent's bench
 }
 
+// A board "counter": a quantity read off the live game state that an attack's
+// damage scales with ("... for each X").  expectedDamage adds perUnit * count.
+export type ScaleCounter =
+  | { kind: 'energyOnDefender' }                  // Energy attached to opp's Active
+  | { kind: 'energyOnAllDefenderPokemon' }        // Energy on ALL of opp's Pokemon
+  | { kind: 'energyOnSelf'; energyType?: ConcreteEnergy } // [E] / any Energy on this
+  | { kind: 'energyTypesOnSelf' }                 // distinct types of Energy on this
+  | { kind: 'myBench'; energyType?: ConcreteEnergy; evolutionOnly?: boolean } // your Benched (of a type / Evolutions)
+  | { kind: 'oppBench' }                          // opponent's Benched
+  | { kind: 'allBench' }                          // both Benches
+  | { kind: 'defenderRetreatCost' }              // Energy in opp Active's Retreat Cost
+  | { kind: 'myPoints' };                        // points you have gotten
+
+// "This attack does N (more) damage for each X."  `replacesBase` is true for the
+// "N damage for each" wording (the attack's flat base is 0, the damage IS the
+// scaling); false for "N more damage for each" (the flat base is kept and this
+// adds on top).
+export interface ScalingRider {
+  perUnit: number;
+  counter: ScaleCounter;
+  replacesBase: boolean;
+}
+
+// A boolean board predicate; when true the attack does `bonus` more damage
+// ("If <predicate>, this attack does N more damage.").
+export type DamagePredicate =
+  | { kind: 'defenderIsEx' }
+  | { kind: 'defenderHasDamage' }
+  | { kind: 'selfHasDamage' }
+  | { kind: 'selfNoDamage' }
+  | { kind: 'defenderHasCondition'; condition?: Condition } // a specific condition, or any (undefined)
+  | { kind: 'supporterPlayedThisTurn' }
+  | { kind: 'defenderIsStage'; stage: 'Basic' | 'Evolution' }
+  | { kind: 'defenderHasAbility' }
+  | { kind: 'selfHasEnergyType'; energyType: ConcreteEnergy }
+  | { kind: 'selfExtraEnergy'; energyType: ConcreteEnergy; threshold: number } // >= N [E] beyond the attack's cost
+  | { kind: 'selfHpAtMost'; value: number }
+  | { kind: 'defenderMoreHp' };                  // opp Active has more remaining HP than this
+
+export interface ConditionalDamage {
+  bonus: number;
+  predicate: DamagePredicate;
+}
+
 export interface Attack {
   name: string;
   cost: EnergyType[];      // e.g. ['Fire','Fire','Colorless']
   damage: number;          // base damage before weakness / coin flips
   coin?: CoinFlipEffect;   // optional coin-flip rider
   variable?: boolean;      // damage string had a + or x (conditional/scaling); base is a floor
+  scaling?: ScalingRider;  // board-dependent "N (more) damage for each X" damage
+  conditional?: ConditionalDamage[]; // "If <board predicate>, this attack does N more damage"
   inflicts?: Condition[];  // special conditions this attack puts on the defender (guaranteed)
   discards?: EnergyDiscard[]; // energy this attack discards (from self and/or the defender)
   heal?: { amount: number; scope: 'self' | 'team' }; // damage healed off your side

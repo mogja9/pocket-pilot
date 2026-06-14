@@ -2,7 +2,7 @@ import type {
   GameState, PlayerState, InPlay, Attack, ConcreteEnergy, EnergyType, EnergyDiscard, SplashDamage,
 } from './types.js';
 import { BENCH_SIZE, WEAKNESS_BONUS } from './types.js';
-import { scalingFor } from './effects.js';
+import { scalingFor, resolveCounter, resolvePredicate } from './effects.js';
 import { trainerEffect } from './trainers.js';
 import { abilityEffect, damageReductionFor, freeRetreatActive } from './abilities.js';
 
@@ -40,18 +40,26 @@ export function canPayCost(have: ConcreteEnergy[], cost: EnergyType[]): boolean 
 
 // Expected damage of `attack` from `attacker` onto `defender`, averaging over
 // coin flips and applying Pokemon-Pocket weakness (+20 to a damaging hit).  When
-// the attacking/defending players are supplied, board-dependent attacks (e.g.
-// Pikachu ex Circle Circuit = 30 x benched Lightning) compute their real base
-// from the live board via the scaling registry; otherwise the dataset's flat
-// base is used as a floor.
+// the attacking/defending players are supplied, board-dependent attacks resolve
+// against the live board: scaling riders ("N (more) damage for each X", e.g.
+// Pikachu ex Circle Circuit = 30 x benched Lightning) and conditional riders
+// ("If <predicate>, +N").  Without that context the dataset's flat base is a floor.
 export function expectedDamage(
   attack: Attack, attacker: InPlay, defender: InPlay,
   me?: PlayerState, opp?: PlayerState,
 ): number {
   let base = attack.damage;
   if (me && opp) {
+    const ctx = { attacker, defender, me, opp };
+    // A bespoke override wins; otherwise apply the generic board-scaling rider
+    // ("N (more) damage for each X") derived from the effect text.
     const scale = scalingFor(attacker.card.name, attack.name);
-    if (scale) base = scale({ attacker, defender, me, opp });
+    if (scale) base = scale(ctx);
+    else if (attack.scaling) base += attack.scaling.perUnit * resolveCounter(attack.scaling.counter, ctx);
+    // Conditional riders ("If <board predicate>, this attack does N more damage").
+    for (const cd of attack.conditional ?? []) {
+      if (resolvePredicate(cd.predicate, ctx, attack)) base += cd.bonus;
+    }
   }
   // Giovanni-style flat boost applies to damaging attacks only; Red's boost only
   // when the defender is an ex.

@@ -4,7 +4,7 @@
 // All text goes through el()'s append(string) -> text node, so card strings can
 // never be interpreted as HTML.
 import { el } from './dom.js';
-import type { Attack, Condition, EnergyType, PokemonCard, Stage } from '../src/types.js';
+import type { Attack, Condition, DamagePredicate, EnergyType, PokemonCard, ScaleCounter, Stage } from '../src/types.js';
 
 // Energy -> single-letter code matching the game's pips (R=Fire, L=Lightning...).
 export const COST_ABBR: Record<EnergyType, string> = {
@@ -15,10 +15,11 @@ export const COST_ABBR: Record<EnergyType, string> = {
 const STAGE_LABEL: Record<Stage, string> = { Basic: 'Basic', Stage1: 'Stage 1', Stage2: 'Stage 2' };
 
 // Human label for an attack's headline number: a flat hit shows the number (with
-// a "+" when it scales up), a per-heads coin attack shows "Nx", and an effect-
-// only attack shows nothing (the effect text carries it).
+// a "+" when it scales up), a per-unit scaling or per-heads coin attack shows
+// "Nx", and an effect-only attack shows nothing (the effect text carries it).
 export function dmgLabel(a: Attack): string {
   if (a.damage > 0) return `${a.damage}${a.variable ? '+' : ''}`;
+  if (a.scaling?.replacesBase) return `${a.scaling.perUnit}x`;
   if (a.coin && a.coin.damagePerHeads > 0) return `${a.coin.damagePerHeads}x`;
   return '';
 }
@@ -31,12 +32,49 @@ const COND_TAG: Record<Condition, string> = {
   asleep: 'sleep', paralyzed: 'paralyze', poisoned: 'poison', burned: 'burn', confused: 'confuse',
 };
 
+// Short labels for the board quantity a scaling attack counts / the predicate a
+// conditional attack tests, used in the compact rider chips.
+function counterLabel(c: ScaleCounter): string {
+  switch (c.kind) {
+    case 'energyOnDefender': return 'def energy';
+    case 'energyOnAllDefenderPokemon': return 'opp energy';
+    case 'energyOnSelf': return c.energyType ? `${COST_ABBR[c.energyType]} energy` : 'energy';
+    case 'energyTypesOnSelf': return 'energy types';
+    case 'myBench': return c.evolutionOnly ? 'evo bench' : c.energyType ? `${COST_ABBR[c.energyType]} bench` : 'bench';
+    case 'oppBench': return 'opp bench';
+    case 'allBench': return 'all bench';
+    case 'defenderRetreatCost': return 'def retreat';
+    case 'myPoints': return 'your pts';
+  }
+}
+function predicateLabel(p: DamagePredicate): string {
+  switch (p.kind) {
+    case 'defenderIsEx': return 'vs ex';
+    case 'defenderHasDamage': return 'if def hurt';
+    case 'selfHasDamage': return 'if hurt';
+    case 'selfNoDamage': return 'if full HP';
+    case 'defenderHasCondition': return p.condition ? `if ${COND_TAG[p.condition]}` : 'if status';
+    case 'supporterPlayedThisTurn': return 'if supporter';
+    case 'defenderIsStage': return p.stage === 'Basic' ? 'vs basic' : 'vs evo';
+    case 'defenderHasAbility': return 'vs ability';
+    case 'selfHasEnergyType': return `if ${COST_ABBR[p.energyType]}`;
+    case 'selfExtraEnergy': return `if +${p.threshold}${COST_ABBR[p.energyType]}`;
+    case 'selfHpAtMost': return `if HP<=${p.value}`;
+    case 'defenderMoreHp': return 'if def healthier';
+  }
+}
+
 // Compact chips for the engine-parsed mechanics of an attack, so a player sees
 // the riders at a glance next to the prose effect text.
 export function riderTags(a: Attack): { cls: string; label: string }[] {
   const tags: { cls: string; label: string }[] = [];
   if (a.coin?.flips) tags.push({ cls: 'coin', label: `coin x${a.coin.flips}` });
   if (a.coin?.successProbability != null) tags.push({ cls: 'coin', label: `${Math.round(a.coin.successProbability * 100)}% hit` });
+  if (a.scaling) {
+    const c = counterLabel(a.scaling.counter);
+    tags.push({ cls: 'scale', label: a.scaling.replacesBase ? `${a.scaling.perUnit}x / ${c}` : `+${a.scaling.perUnit} / ${c}` });
+  }
+  for (const cd of a.conditional ?? []) tags.push({ cls: 'boost', label: `+${cd.bonus} ${predicateLabel(cd.predicate)}` });
   for (const c of a.inflicts ?? []) tags.push({ cls: 'cond', label: COND_TAG[c] });
   for (const c of a.coinInflict ?? []) tags.push({ cls: 'cond', label: `50% ${COND_TAG[c]}` });
   for (const d of a.discards ?? []) {

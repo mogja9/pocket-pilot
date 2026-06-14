@@ -50,6 +50,12 @@ t('cardDetailEl shows compact rider tags for parsed mechanics', () => {
   const healTags = [...cardDetailEl(findCard('Vaporeon')).querySelectorAll('.ci-tag')].map((e) => e.textContent);
   assert.ok(healTags.includes('heal 30'), `expected a heal tag, got ${healTags}`);
 });
+t('cardDetailEl shows scaling and conditional damage chips', () => {
+  const scaleTags = [...cardDetailEl(findCard('Cinccino')).querySelectorAll('.ci-tag')].map((e) => e.textContent);
+  assert.ok(scaleTags.includes('30x / bench'), `expected a scaling tag, got ${scaleTags}`);
+  const boostTags = [...cardDetailEl(findCard('Primeape')).querySelectorAll('.ci-tag')].map((e) => e.textContent);
+  assert.ok(boostTags.includes('+60 if hurt'), `expected a conditional tag, got ${boostTags}`);
+});
 
 const { cardImageUrl } = await import('./images.js');
 t('cardImageUrl keeps sub-set suffixes lowercase (a4b -> A4b, not A4B)', () => {

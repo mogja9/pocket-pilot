@@ -28,9 +28,20 @@ capitalized) wordings are committed to in the deterministic `applyMove`;
 coin-gated wordings are valued by expected value in the search instead.
 
 - **Damage**: coin-flip EV (multi-coin per-heads, flip-until-tails, and "if
-  tails nothing" via a `successProbability`), Pocket weakness (+20),
-  board-dependent scaling (`src/effects.ts`, e.g. Pikachu ex Circle Circuit = 30
-  x benched Lightning), the Giovanni flat boost, and Red's +20 vs ex.
+  tails nothing" via a `successProbability`), Pocket weakness (+20), the Giovanni
+  flat boost, and Red's +20 vs ex.
+- **Board-dependent scaling** (99 attacks): "N (more) damage for each X" parsed
+  generically into a `ScaleCounter` (energy on the defender, your / opponent's /
+  both benches, energy or energy-types on this Pokemon, the defender's retreat
+  cost, points you have) and resolved against the live board in
+  `expectedDamage` -- e.g. Pikachu ex Circle Circuit = 30 x benched Lightning,
+  Cinccino Do the Wave = 30 x your bench. `src/effects.ts` keeps an override hook
+  for bespoke wordings the parser can't template.
+- **Conditional damage** (122 attacks): "If <predicate>, this attack does N more
+  damage" parsed into a board test (defender is ex / hurt / Poisoned / an
+  Evolution / has an Ability, this Pokemon is hurt / undamaged / holds at least N
+  extra [E] Energy, you played a Supporter this turn, ...). Together with scaling
+  this lifts modeled variable-damage attacks from 185 to 405 of 569.
 - **Status** (137 attacks): Poisoned / Asleep / Paralyzed / Burned / Confused
   applied to the defender; **coin-gated** "if heads, ... Paralyzed/Asleep" (39)
   is valued as a 0.5 EV blend in the 2-ply reply (a slept/paralyzed attacker
@@ -109,6 +120,11 @@ to catch multi-turn stalls), and `web/dom.test.ts` + `web/app.smoke.ts`.
 - "1 less" retreat passives and Pokemon Tools are not modeled yet.
 - The opponent's hand and deck are hidden, so the reply assumes only what is on
   the board plus one generated energy.
+- Variable-damage attacks that scale on state the board model doesn't track stay
+  on their flat base (and are left for display only): Pokemon-Tool / deck /
+  discard-pile counts, turn history ("moved / evolved this turn", KO history),
+  Stadium-in-play conditionals, and coin counts that scale with the board
+  ("flip a coin for each Energy"). Of 569 variable attacks, 405 are modeled.
 
 ## Remaining gaps
 

@@ -1,5 +1,5 @@
 import type { PokemonCard, TrainerCard, Card, Attack, EnergyType, ConcreteEnergy, Stage, CoinFlipEffect } from './types.js';
-import { coinRiderFromText, defenderConditionsFromText, energyDiscardsFromText, healFromText, splashFromText, coinInflictFromText } from './effect-text.js';
+import { coinRiderFromText, defenderConditionsFromText, energyDiscardsFromText, healFromText, splashFromText, coinInflictFromText, scalingFromText, conditionalsFromText } from './effect-text.js';
 
 // PURE card-data adapter (no fs, no JSON import) so it runs in both Node and the
 // browser.  `buildIndex(raw)` maps the hugoburguete dataset schema to the engine
@@ -51,10 +51,14 @@ function adaptAttack(cardName: string, a: NonNullable<RawCard['attacks']>[number
           ...(textRider.successProbability != null ? { successProbability: textRider.successProbability } : {}),
         }
       : undefined;
+  const scaling = scalingFromText(a.text);
+  const conditional = conditionalsFromText(a.text);
   // A per-heads rider ("Nx" = "N damage for each heads") means the dataset's
   // number is the per-heads value, so the flat base is 0.  A heads-bonus rider
-  // ("N+" = "+N on heads") keeps the flat base.
-  const zeroBase = override ? true : textRider?.zeroBase ?? false;
+  // ("N+" = "+N on heads") keeps the flat base.  Board scaling of the
+  // "N damage for each X" form (replacesBase) likewise carries the whole damage,
+  // so its flat base is 0 too.
+  const zeroBase = override ? true : (textRider?.zeroBase ?? false) || (scaling?.replacesBase ?? false);
   const inflicts = defenderConditionsFromText(a.text);
   const discards = energyDiscardsFromText(a.text);
   const heal = healFromText(a.text);
@@ -66,6 +70,8 @@ function adaptAttack(cardName: string, a: NonNullable<RawCard['attacks']>[number
     damage: zeroBase ? 0 : damage,
     variable: variable || undefined,
     ...(coin ? { coin } : {}),
+    ...(scaling ? { scaling } : {}),
+    ...(conditional.length ? { conditional } : {}),
     ...(inflicts.length ? { inflicts } : {}),
     ...(discards.length ? { discards } : {}),
     ...(heal ? { heal } : {}),

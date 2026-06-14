@@ -143,6 +143,71 @@ test('scaling: Circle Circuit deals 30 x benched Lightning', () => {
   assert.equal(expectedDamage(cc, pikachu, defender, twoLightning, opp), 60, '2 benched Lightning -> 60');
 });
 
+// Helpers for the generic scaling/conditional tests: pick the specific print that
+// carries a given attack, and a bare PlayerState wrapper.
+const ipWith = (name: string, atkName: string, energy: ConcreteEnergy[] = [], damage = 0): InPlay => {
+  const card = ALL_POKEMON.find((p) => p.name === name && p.attacks.some((a) => a.name === atkName))!;
+  return { card, energy, damage, turnPlayedOrEvolved: 1 };
+};
+const pstate = (active: InPlay | null, bench: InPlay[] = []): PlayerState => ({
+  name: 'p', active, bench, hand: [], deckCount: 0, discardCount: 0, points: 0,
+  energyZone: [], pendingEnergy: null, energyAttachedThisTurn: false,
+});
+
+test('scaling: additive "+N more for each Energy on the defender" (Alakazam Psychic)', () => {
+  const zam = ipWith('Alakazam', 'Psychic', ['Psychic', 'Psychic', 'Psychic']);
+  const psy = zam.card.attacks.find((a) => a.name === 'Psychic')!;
+  assert.deepEqual(psy.scaling, { perUnit: 30, counter: { kind: 'energyOnDefender' }, replacesBase: false });
+  const def0 = ip('Snorlax');                      // 0 energy (Colorless, not weak to Psychic)
+  const def2 = ip('Snorlax', ['Water', 'Water']);  // 2 energy
+  const d0 = expectedDamage(psy, zam, def0, pstate(zam), pstate(def0));
+  const d2 = expectedDamage(psy, zam, def2, pstate(zam), pstate(def2));
+  assert.equal(d0, 60, 'flat base kept when the counter is 0');
+  assert.equal(d2 - d0, 60, '+30 per Energy on the opponent active');
+});
+
+test('scaling: replace "N damage for each of your Benched" (Cinccino Do the Wave)', () => {
+  const cinc = ipWith('Cinccino', 'Do the Wave', ['Water', 'Water', 'Water']); // any 3 pay the [C][C][C] cost
+  const wave = cinc.card.attacks.find((a) => a.name === 'Do the Wave')!;
+  assert.equal(wave.damage, 0, 'a replace-base scaling rider zeroes the flat base');
+  assert.deepEqual(wave.scaling, { perUnit: 30, counter: { kind: 'myBench' }, replacesBase: true });
+  const def = ip('Charmander'); // Cinccino is Colorless -> never deals weakness
+  assert.equal(expectedDamage(wave, cinc, def, pstate(cinc, []), pstate(def)), 0, '0 benched -> 0');
+  const me3 = pstate(cinc, [ip('Snorlax'), ip('Snorlax'), ip('Snorlax')]);
+  assert.equal(expectedDamage(wave, cinc, def, me3, pstate(def)), 90, '3 benched -> 90');
+});
+
+test('conditional: "+N if the defender is a Pokemon ex" (Tauros Fighting Tackle)', () => {
+  const tauros = ipWith('Tauros', 'Fighting Tackle', ['Fighting', 'Water']); // Water pays the [C] in the cost
+  const ft = tauros.card.attacks.find((a) => a.name === 'Fighting Tackle')!;
+  assert.deepEqual(ft.conditional, [{ bonus: 80, predicate: { kind: 'defenderIsEx' } }]);
+  const nonEx = ip('Snorlax');       // Tauros is Colorless -> no weakness either way
+  const exDef = ip('Articuno ex');   // Water ex, not weak to Colorless
+  assert.equal(expectedDamage(ft, tauros, nonEx, pstate(tauros), pstate(nonEx)), 40, 'no bonus vs a non-ex');
+  assert.equal(expectedDamage(ft, tauros, exDef, pstate(tauros), pstate(exDef)), 120, '+80 vs an ex');
+});
+
+test('conditional: "+N if this Pokemon has damage" (Primeape Fight Back)', () => {
+  const fresh = ipWith('Primeape', 'Fight Back', ['Fighting']);
+  const hurt = ipWith('Primeape', 'Fight Back', ['Fighting'], 30);
+  const fb = fresh.card.attacks.find((a) => a.name === 'Fight Back')!;
+  assert.deepEqual(fb.conditional, [{ bonus: 60, predicate: { kind: 'selfHasDamage' } }]);
+  const def = ip('Charmander'); // Fire, not weak to Fighting
+  const clean = expectedDamage(fb, fresh, def, pstate(fresh), pstate(def));
+  const boosted = expectedDamage(fb, hurt, def, pstate(hurt), pstate(def));
+  assert.equal(boosted - clean, 60, '+60 once this Pokemon has taken damage');
+});
+
+test('conditional: "+N if at least 2 extra [W] Energy" (Blastoise Hydro Pump)', () => {
+  const noExtra = ipWith('Blastoise', 'Hydro Pump', ['Water', 'Water']);                  // 0 extra beyond the WWC cost
+  const extra2 = ipWith('Blastoise', 'Hydro Pump', ['Water', 'Water', 'Water', 'Water']); // 2 extra [W]
+  const hp = noExtra.card.attacks.find((a) => a.name === 'Hydro Pump')!;
+  assert.deepEqual(hp.conditional, [{ bonus: 60, predicate: { kind: 'selfExtraEnergy', energyType: 'Water', threshold: 2 } }]);
+  const def = ip('Snorlax'); // Colorless, not weak to Water
+  assert.equal(expectedDamage(hp, noExtra, def, pstate(noExtra), pstate(def)), 80, 'no bonus without 2 extra [W]');
+  assert.equal(expectedDamage(hp, extra2, def, pstate(extra2), pstate(def)), 140, '+60 with 2 extra [W]');
+});
+
 test('condition: paralyzed active cannot attack or retreat', () => {
   const active = ip('Charizard ex', ['Fire', 'Fire', 'Fire']);
   active.conditions = ['paralyzed'];

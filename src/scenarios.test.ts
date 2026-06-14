@@ -79,6 +79,16 @@ const SCENARIOS: Scenario[] = [
       assert.equal(s.survivesReply, true, 'after the strip the opponent cannot KO back');
     },
   },
+  {
+    // Do the Wave is "30 damage for each of your Benched Pokemon": with a full
+    // bench it deals 90, lethal on the 80-HP-remaining ex.  An engine blind to
+    // board scaling would read the flat 30 and miss the KO.
+    name: 'sees scaled damage: a full bench makes Do the Wave a lethal +2',
+    state: game(
+      side(ip('Cinccino', ['Water', 'Water', 'Water']), { bench: [ip('Snorlax'), ip('Snorlax'), ip('Snorlax')], energyZone: ['Water'] }),
+      side(damaged(ip('Articuno ex'), 60), { bench: [ip('Snorlax')], energyZone: ['Water'] })),
+    check: (_r, s) => { assert.equal(s.kos, true); assert.equal(s.pointSwing, 2); },
+  },
 ];
 
 let passed = 0;
